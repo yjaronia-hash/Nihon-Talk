@@ -18,7 +18,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     youtube: "https://www.youtube.com/@%EB%8B%88%ED%98%BC%ED%86%A1"
   },
   youtubeUrl: "https://www.youtube.com/@%EB%8B%88%ED%98%BC%ED%86%A1",
-  heroImageUrl: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop",
+  heroImageUrl: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=1200&auto=format&fit=crop",
   instructor: {
     name: "사토 유키 (Sato Yuki)",
     role: "대표 강사 / 원어민",
@@ -31,7 +31,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
     ],
     imageUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop"
   },
-  scheduleMonth: "4월",
+  scheduleMonth: "5월",
   schedule: [
     { id: "1", day: "월", timeSlot: "16:00-17:30", className: "JLPT 3급", isGroup: true, color: "#FFD8A8" },
     { id: "2", day: "월", timeSlot: "20:00-21:30", className: "JLPT 1급", isGroup: true, color: "#D3F9D8" },

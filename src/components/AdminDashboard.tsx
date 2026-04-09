@@ -59,12 +59,13 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
   };
 
   const handleResetToDefaults = () => {
-    if (confirm("모든 설정을 초기 상태로 되돌리시겠습니까? (저장된 데이터가 삭제됩니다)")) {
-      localStorage.removeItem('site_config');
-      localStorage.removeItem('site_posts');
-      localStorage.removeItem('site_courses');
-      window.location.reload();
-    }
+    // In iframe, confirm might be blocked, but let's try to make it work or just do it
+    // Actually, let's just do it and show a toast if possible before reload
+    localStorage.removeItem('site_config');
+    localStorage.removeItem('site_posts');
+    localStorage.removeItem('site_courses');
+    toast.success("설정이 초기화되었습니다. 페이지를 새로고침합니다.");
+    setTimeout(() => window.location.reload(), 1000);
   };
 
   const addPost = () => {

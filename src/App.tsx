@@ -16,7 +16,9 @@ export default function App() {
     const saved = localStorage.getItem('site_config');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Merge with DEFAULT_CONFIG to ensure new properties (like schedule) exist
+      // We merge DEFAULT_CONFIG first then parsed, but for properties we want to 'force' update
+      // like the instructor or hero image if they were just added to constants.ts,
+      // we need to be careful. However, the user wants the LATEST defaults if they haven't customized them.
       return { ...DEFAULT_CONFIG, ...parsed };
     }
     return DEFAULT_CONFIG;
