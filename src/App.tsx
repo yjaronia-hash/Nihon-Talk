@@ -10,46 +10,129 @@ import AdminDashboard from './components/AdminDashboard';
 import Timetable from './components/Timetable';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
+import { db, auth, signInWithGoogle, logout } from './firebase';
+import { doc, onSnapshot, setDoc, collection, query, orderBy } from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function App() {
-  const [config, setConfig] = useState<SiteConfig>(() => {
-    const saved = localStorage.getItem('site_config');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // We merge DEFAULT_CONFIG first then parsed, but for properties we want to 'force' update
-      // like the instructor or hero image if they were just added to constants.ts,
-      // we need to be careful. However, the user wants the LATEST defaults if they haven't customized them.
-      return { ...DEFAULT_CONFIG, ...parsed };
-    }
-    return DEFAULT_CONFIG;
-  });
-
-  const [posts, setPosts] = useState<Post[]>(() => {
-    const saved = localStorage.getItem('site_posts');
-    return saved ? JSON.parse(saved) : INITIAL_POSTS;
-  });
-
-  const [courses, setCourses] = useState<Course[]>(() => {
-    const saved = localStorage.getItem('site_courses');
-    return saved ? JSON.parse(saved) : INITIAL_COURSES;
-  });
-
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [config, setConfig] = useState<SiteConfig>(DEFAULT_CONFIG);
+  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
+  const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Auth state listener
   useEffect(() => {
-    localStorage.setItem('site_config', JSON.stringify(config));
-  }, [config]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
+  // Firestore listeners
   useEffect(() => {
-    localStorage.setItem('site_posts', JSON.stringify(posts));
-  }, [posts]);
+    // Config listener
+    const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as SiteConfig;
+        setConfig({ ...DEFAULT_CONFIG, ...data });
+      } else {
+        // Initialize with default if not exists
+        setDoc(doc(db, 'settings', 'config'), DEFAULT_CONFIG);
+      }
+    });
 
-  useEffect(() => {
-    localStorage.setItem('site_courses', JSON.stringify(courses));
-  }, [courses]);
+    // Posts listener
+    const unsubPosts = onSnapshot(query(collection(db, 'content', 'posts', 'items'), orderBy('date', 'desc')), (snap) => {
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+      if (items.length > 0) {
+        setPosts(items);
+      } else if (INITIAL_POSTS.length > 0 && isUserAdmin) {
+        // Seed initial posts if empty and user is admin
+        INITIAL_POSTS.forEach(p => {
+          setDoc(doc(db, 'content', 'posts', 'items', p.id), p);
+        });
+      }
+    });
 
-  const toggleAdmin = () => setIsAdmin(!isAdmin);
+    // Courses listener
+    const unsubCourses = onSnapshot(collection(db, 'content', 'courses', 'items'), (snap) => {
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Course));
+      if (items.length > 0) {
+        setCourses(items);
+      } else if (INITIAL_COURSES.length > 0 && isUserAdmin) {
+        // Seed initial courses if empty and user is admin
+        INITIAL_COURSES.forEach(c => {
+          setDoc(doc(db, 'content', 'courses', 'items', c.id), c);
+        });
+      }
+    });
+
+    return () => {
+      unsubConfig();
+      unsubPosts();
+      unsubCourses();
+    };
+  }, []);
+
+  const isUserAdmin = user?.email === 'yjaronia@gmail.com';
+
+  const toggleAdmin = async () => {
+    if (!user) {
+      try {
+        await signInWithGoogle();
+      } catch (error) {
+        toast.error("로그인에 실패했습니다.");
+      }
+    } else if (isUserAdmin) {
+      setIsAdminMode(!isAdminMode);
+    } else {
+      toast.error("관리자 권한이 없습니다.");
+    }
+  };
+
+  const handleUpdateConfig = async (newConfig: SiteConfig) => {
+    try {
+      await setDoc(doc(db, 'settings', 'config'), newConfig);
+      toast.success("설정이 저장되었습니다.");
+    } catch (error) {
+      console.error("Update Config Error:", error);
+      toast.error(`설정 저장 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    }
+  };
+
+  const handleUpdatePosts = async (newPosts: Post[]) => {
+    try {
+      // Sync all posts to Firestore
+      for (const post of newPosts) {
+        await setDoc(doc(db, 'content', 'posts', 'items', post.id), post);
+      }
+      setPosts(newPosts);
+      toast.success("게시글이 저장되었습니다.");
+    } catch (error) {
+      console.error("Update Posts Error:", error);
+      toast.error(`게시글 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      throw error;
+    }
+  };
+
+  const handleUpdateCourses = async (newCourses: Course[]) => {
+    try {
+      // Sync all courses to Firestore
+      for (const course of newCourses) {
+        await setDoc(doc(db, 'content', 'courses', 'items', course.id), course);
+      }
+      setCourses(newCourses);
+      toast.success("교육 과정이 저장되었습니다.");
+    } catch (error) {
+      console.error("Update Courses Error:", error);
+      toast.error(`과정 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      throw error;
+    }
+  };
 
   const handleContactSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -75,18 +158,18 @@ export default function App() {
         className="fixed bottom-6 right-6 z-50 rounded-full shadow-lg bg-white hover:bg-gray-50"
         onClick={toggleAdmin}
       >
-        {isAdmin ? <Eye className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
+        {isAdminMode ? <Eye className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
       </Button>
 
-      {isAdmin ? (
+      {isAdminMode ? (
         <AdminDashboard 
           config={config} 
-          setConfig={setConfig} 
+          setConfig={handleUpdateConfig} 
           posts={posts} 
-          setPosts={setPosts}
+          setPosts={handleUpdatePosts}
           courses={courses}
-          setCourses={setCourses}
-          onClose={() => setIsAdmin(false)}
+          setCourses={handleUpdateCourses}
+          onClose={() => setIsAdminMode(false)}
         />
       ) : (
         <div className="flex flex-col">
@@ -173,7 +256,7 @@ export default function App() {
                   </p>
                   <div className="flex flex-wrap gap-4">
                     <Button size="lg" style={{ backgroundColor: config.primaryColor, color: '#000' }} className="px-8 font-bold shadow-lg shadow-yellow-200">
-                      체험레슨
+                      {config.heroButtonText || "체험레슨"}
                     </Button>
                     <Button size="lg" variant="outline" className="px-8 border-gray-200">
                       상담 신청

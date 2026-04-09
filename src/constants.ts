@@ -6,6 +6,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   description: "일본어 원어민 강사진과 함께하는 1:1 맞춤형 회화 교습소입니다. 자연스러운 표현과 비즈니스 매너까지 완벽하게 마스터하세요.",
   heroTitle: "일본어, 이제 원어민처럼 말하세요",
   heroSubtitle: "니혼톡은 당신의 꿈을 응원합니다. 기초부터 비즈니스 회화까지, 가장 효율적인 학습 경로를 제시합니다.",
+  heroButtonText: "체험레슨",
   primaryColor: "#FACC15", // Tailwind yellow-400
   fontFamily: "Inter, sans-serif",
   logoUrl: "https://files.oaiusercontent.com/file-K18u27f918u27f918u27f9?se=2026-04-09T03%3A23%3A39Z&sp=r&sv=24.8&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3Dshiba.png&sig=placeholder_signature",

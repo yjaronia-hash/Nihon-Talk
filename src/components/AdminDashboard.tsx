@@ -15,6 +15,9 @@ import { Plus, Trash2, Save, X, Image as ImageIcon, Settings, FileText, BookOpen
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from "sonner";
 
+import { db } from '../firebase';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+
 interface AdminDashboardProps {
   config: SiteConfig;
   setConfig: (config: SiteConfig) => void;
@@ -43,19 +46,23 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
     "20:00-21:30"
   ];
 
-  const handleSaveConfig = () => {
-    setConfig(localConfig);
-    toast.success("사이트 설정이 저장되었습니다.");
+  const handleSaveConfig = async () => {
+    try {
+      await setDoc(doc(db, 'settings', 'config'), localConfig);
+      setConfig(localConfig);
+      toast.success("사이트 설정이 저장되었습니다.");
+    } catch (error) {
+      console.error("Config Save Error:", error);
+      toast.error(`설정 저장 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    }
   };
 
-  const handleSavePosts = () => {
-    setPosts(localPosts);
-    toast.success("게시글 목록이 저장되었습니다.");
+  const handleSavePosts = async () => {
+    await setPosts(localPosts);
   };
 
-  const handleSaveCourses = () => {
-    setCourses(localCourses);
-    toast.success("교육 과정 목록이 저장되었습니다.");
+  const handleSaveCourses = async () => {
+    await setCourses(localCourses);
   };
 
   const handleResetToDefaults = () => {
@@ -82,8 +89,14 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
     setLocalPosts([newPost, ...localPosts]);
   };
 
-  const deletePost = (id: string) => {
-    setLocalPosts(localPosts.filter(p => p.id !== id));
+  const deletePost = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'content', 'posts', 'items', id));
+      setLocalPosts(localPosts.filter(p => p.id !== id));
+      toast.success("게시글이 삭제되었습니다.");
+    } catch (error) {
+      toast.error("삭제에 실패했습니다.");
+    }
   };
 
   const updatePost = (id: string, updates: Partial<Post>) => {
@@ -102,8 +115,14 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
     setLocalCourses([...localCourses, newCourse]);
   };
 
-  const deleteCourse = (id: string) => {
-    setLocalCourses(localCourses.filter(c => c.id !== id));
+  const deleteCourse = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'content', 'courses', 'items', id));
+      setLocalCourses(localCourses.filter(c => c.id !== id));
+      toast.success("과정이 삭제되었습니다.");
+    } catch (error) {
+      toast.error("삭제에 실패했습니다.");
+    }
   };
 
   const updateCourse = (id: string, updates: Partial<Course>) => {
@@ -248,6 +267,10 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                     <div className="space-y-2">
                       <Label>메인 타이틀</Label>
                       <Input value={localConfig.heroTitle} onChange={e => setLocalConfig({...localConfig, heroTitle: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>버튼 문구</Label>
+                      <Input value={localConfig.heroButtonText} onChange={e => setLocalConfig({...localConfig, heroButtonText: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                       <Label>서브 타이틀</Label>

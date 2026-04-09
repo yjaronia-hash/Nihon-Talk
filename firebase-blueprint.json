@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "siteConfig": {
+      "title": "Site Configuration",
+      "description": "Global settings for the NihonTalk website",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "heroTitle": { "type": "string" },
+        "heroSubtitle": { "type": "string" },
+        "heroButtonText": { "type": "string" },
+        "primaryColor": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "socialLinks": {
+          "type": "object",
+          "properties": {
+            "instagram": { "type": "string" },
+            "facebook": { "type": "string" },
+            "youtube": { "type": "string" }
+          }
+        },
+        "youtubeUrl": { "type": "string" },
+        "heroImageUrl": { "type": "string" },
+        "instructor": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "role": { "type": "string" },
+            "bio": { "type": "string" },
+            "experience": { "type": "array", "items": { "type": "string" } },
+            "imageUrl": { "type": "string" }
+          }
+        },
+        "scheduleMonth": { "type": "string" },
+        "schedule": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "day": { "type": "string" },
+              "timeSlot": { "type": "string" },
+              "className": { "type": "string" },
+              "isGroup": { "type": "boolean" },
+              "color": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "posts": {
+      "title": "Blog Posts",
+      "description": "YouTube Shorts and other community posts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "category": { "type": "string" },
+        "published": { "type": "boolean" }
+      }
+    },
+    "courses": {
+      "title": "Courses",
+      "description": "Educational courses offered by NihonTalk",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "string" },
+        "duration": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/settings/config": {
+      "schema": "siteConfig",
+      "description": "Global site configuration"
+    },
+    "/content/posts": {
+      "schema": "posts",
+      "description": "Collection of blog posts"
+    },
+    "/content/courses": {
+      "schema": "courses",
+      "description": "Collection of courses"
+    }
+  }
+}

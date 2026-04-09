@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "yjaronia@gmail.com");
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Global settings
+    match /settings/config {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Content collections (recursive match to support subcollections like /items/{id})
+    match /content/{collectionId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Test collection
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

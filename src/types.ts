@@ -4,6 +4,7 @@ export interface SiteConfig {
   description: string;
   heroTitle: string;
   heroSubtitle: string;
+  heroButtonText: string;
   primaryColor: string;
   fontFamily: string;
   logoUrl: string;
