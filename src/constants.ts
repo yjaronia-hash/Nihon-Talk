@@ -48,7 +48,42 @@ export const DEFAULT_CONFIG: SiteConfig = {
     { id: "12", day: "토", timeSlot: "11:30-13:00", className: "초.중급", isGroup: false },
     { id: "13", day: "토", timeSlot: "13:00-14:30", className: "프리토킹", isGroup: true, color: "#FFD8A8" },
     { id: "14", day: "토", timeSlot: "14:30-16:00", className: "초급", isGroup: false },
-  ]
+  ],
+  sectionOrder: ["courses", "about", "instructors", "gallery", "timetable", "posts", "contact"],
+  features: {
+    title: "왜 니혼톡인가요?",
+    items: [
+      { title: "100% 원어민 강사진", desc: "검증된 실력과 열정을 가진 일본어 원어민 강사진이 직접 지도합니다." },
+      { title: "맞춤형 커리큘럼", desc: "학습자의 수준과 목적에 맞는 최적화된 학습 경로를 제공합니다." },
+      { title: "실전 중심 회화", desc: "단순 암기가 아닌, 실제 상황에서 바로 사용할 수 있는 표현을 익힙니다." }
+    ]
+  },
+  gallery: {
+    title: "교습소 둘러보기",
+    images: [
+      { id: "1", url: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=800&auto=format&fit=crop", caption: "열정적인 수업 현장" },
+      { id: "2", url: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=800&auto=format&fit=crop", caption: "쾌적한 학습 환경" },
+      { id: "3", url: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=800&auto=format&fit=crop", caption: "함께 공부하는 즐거움" }
+    ]
+  },
+  instructors: {
+    title: "강사진 소개",
+    items: [
+      { 
+        id: "1", 
+        name: "치바 센세", 
+        role: "원어민 대표 강사", 
+        bio: "10년 이상의 한국인 대상 일본어 교육 경력. 실전 회화와 비즈니스 일본어 전문.", 
+        imageUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=400&auto=format&fit=crop",
+        experience: [
+          "도쿄 외국어 대학교 졸업",
+          "전) 대형 어학원 비즈니스 일본어 전임 강사",
+          "JLPT 1급 만점자 다수 배출",
+          "기업체 출강 및 통번역 경력 8년"
+        ]
+      }
+    ]
+  }
 };
 
 export const INITIAL_POSTS: Post[] = [

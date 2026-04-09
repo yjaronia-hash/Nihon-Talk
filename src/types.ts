@@ -27,6 +27,28 @@ export interface SiteConfig {
   };
   scheduleMonth: string;
   schedule: ScheduleItem[];
+  sectionOrder?: string[];
+  features?: {
+    title: string;
+    items: { title: string; desc: string }[];
+  };
+  gallery?: {
+    title: string;
+    images: { id: string; url: string; caption: string }[];
+  };
+  instructors?: {
+    title: string;
+    items: Instructor[];
+  };
+}
+
+export interface Instructor {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  imageUrl: string;
+  experience?: string[];
 }
 
 export interface ScheduleItem {
@@ -56,4 +78,5 @@ export interface Course {
   price: string;
   duration: string;
   imageUrl: string;
+  order?: number;
 }

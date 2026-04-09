@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Save, X, Image as ImageIcon, Settings, FileText, BookOpen, Palette, LayoutDashboard, RotateCcw, Calendar, User } from 'lucide-react';
+import { Plus, Trash2, Save, X, Image as ImageIcon, Settings, FileText, BookOpen, Palette, LayoutDashboard, RotateCcw, Calendar, User, ChevronUp, ChevronDown, Edit3, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from "sonner";
 
@@ -34,6 +34,19 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
   const [localCourses, setLocalCourses] = useState(courses);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
 
+  // Sync local state with props when they change (e.g. after Firestore load)
+  React.useEffect(() => {
+    setLocalConfig(config);
+  }, [config]);
+
+  React.useEffect(() => {
+    setLocalPosts(posts);
+  }, [posts]);
+
+  React.useEffect(() => {
+    setLocalCourses(courses);
+  }, [courses]);
+
   const DAYS = ['월', '화', '수', '목', '금', '토'];
   const DEFAULT_TIME_SLOTS = [
     "10:00-12:00",
@@ -48,12 +61,28 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
 
   const handleSaveConfig = async () => {
     try {
-      await setDoc(doc(db, 'settings', 'config'), localConfig);
-      setConfig(localConfig);
-      toast.success("사이트 설정이 저장되었습니다.");
+      // Clean up config before saving
+      const cleanedConfig = { ...localConfig };
+      
+      // Ensure instructors experience is cleaned up (remove empty strings)
+      if (cleanedConfig.instructors?.items) {
+        cleanedConfig.instructors.items = cleanedConfig.instructors.items.map(item => ({
+          ...item,
+          experience: item.experience?.filter(exp => exp.trim() !== '') || []
+        }));
+      }
+
+      console.log("Saving Config:", cleanedConfig);
+      await setConfig(cleanedConfig);
+      // toast.success is handled in App.tsx handleUpdateConfig
     } catch (error) {
       console.error("Config Save Error:", error);
-      toast.error(`설정 저장 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      toast.error(`설정 저장 실패: ${errorMessage}`);
+      
+      if (errorMessage.includes('too large')) {
+        toast.error("데이터 크기가 너무 큽니다. 이미지를 더 작은 파일로 교체해 주세요.");
+      }
     }
   };
 
@@ -129,6 +158,40 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
     setLocalCourses(localCourses.map(c => c.id === id ? { ...c, ...updates } : c));
   };
 
+  const moveCourse = (index: number, direction: 'up' | 'down') => {
+    const newCourses = [...localCourses];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < newCourses.length) {
+      [newCourses[index], newCourses[targetIndex]] = [newCourses[targetIndex], newCourses[index]];
+      setLocalCourses(newCourses);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 800000) { // ~800KB limit to stay safe with Firestore 1MB limit
+        toast.error("이미지 크기가 너무 큽니다. 800KB 이하의 이미지를 사용해주세요.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        callback(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const ALL_SECTIONS = ["courses", "about", "instructors", "gallery", "timetable", "posts", "contact"];
+  const currentSectionOrder = React.useMemo(() => {
+    const order = [...(localConfig.sectionOrder || ALL_SECTIONS)];
+    // Ensure all sections are present
+    ALL_SECTIONS.forEach(s => {
+      if (!order.includes(s)) order.push(s);
+    });
+    return order;
+  }, [localConfig.sectionOrder]);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Dashboard Header */}
@@ -171,8 +234,17 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
               <TabsTrigger value="timetable" className="data-[state=active]:border-b-2 data-[state=active]:border-gray-900 rounded-none h-full px-0 bg-transparent shadow-none">
                 <Calendar className="w-4 h-4 mr-2" /> 시간표 관리
               </TabsTrigger>
-              <TabsTrigger value="instructor" className="data-[state=active]:border-b-2 data-[state=active]:border-gray-900 rounded-none h-full px-0 bg-transparent shadow-none">
+              <TabsTrigger value="about" className="data-[state=active]:border-b-2 data-[state=active]:border-gray-900 rounded-none h-full px-0 bg-transparent shadow-none">
+                <Edit3 className="w-4 h-4 mr-2" /> 교습소 소개
+              </TabsTrigger>
+              <TabsTrigger value="instructors" className="data-[state=active]:border-b-2 data-[state=active]:border-gray-900 rounded-none h-full px-0 bg-transparent shadow-none">
                 <User className="w-4 h-4 mr-2" /> 강사 소개
+              </TabsTrigger>
+              <TabsTrigger value="gallery" className="data-[state=active]:border-b-2 data-[state=active]:border-gray-900 rounded-none h-full px-0 bg-transparent shadow-none">
+                <ImageIcon className="w-4 h-4 mr-2" /> 갤러리
+              </TabsTrigger>
+              <TabsTrigger value="layout" className="data-[state=active]:border-b-2 data-[state=active]:border-gray-900 rounded-none h-full px-0 bg-transparent shadow-none">
+                <LayoutDashboard className="w-4 h-4 mr-2" /> 섹션 순서
               </TabsTrigger>
             </TabsList>
           </div>
@@ -180,6 +252,464 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
           <div className="flex-1 overflow-y-auto p-6">
             <div className="max-w-4xl mx-auto space-y-8 pb-20">
               
+              {/* Introduction (About) */}
+              <TabsContent value="about" className="mt-0 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>교습소 소개 관리</CardTitle>
+                    <CardDescription>'왜 니혼톡인가요?' 섹션의 내용을 수정합니다.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                      <Label>섹션 제목</Label>
+                      <Input 
+                        value={localConfig.features?.title || ""} 
+                        onChange={e => setLocalConfig({
+                          ...localConfig, 
+                          features: { ...(localConfig.features || { title: "", items: [] }), title: e.target.value }
+                        })} 
+                      />
+                    </div>
+                    <Separator />
+                    <div className="space-y-4">
+                      <Label>특징 리스트 (최대 3개)</Label>
+                      {(localConfig.features?.items || []).map((item, index) => (
+                        <div key={index} className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                          <div className="flex justify-between items-center">
+                            <Badge>특징 {index + 1}</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">제목</Label>
+                            <Input 
+                              value={item.title} 
+                              onChange={e => {
+                                const newItems = [...(localConfig.features?.items || [])];
+                                newItems[index] = { ...item, title: e.target.value };
+                                setLocalConfig({
+                                  ...localConfig,
+                                  features: { ...(localConfig.features || { title: "", items: [] }), items: newItems }
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">설명</Label>
+                            <Textarea 
+                              value={item.desc} 
+                              onChange={e => {
+                                const newItems = [...(localConfig.features?.items || [])];
+                                newItems[index] = { ...item, desc: e.target.value };
+                                setLocalConfig({
+                                  ...localConfig,
+                                  features: { ...(localConfig.features || { title: "", items: [] }), items: newItems }
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="bg-gray-50 border-t px-6 py-4 flex justify-end">
+                    <Button onClick={handleSaveConfig} className="gap-2">
+                      <Save className="w-4 h-4" /> 소개 저장
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              {/* Instructors */}
+              <TabsContent value="instructors" className="mt-0 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>강사진 관리</CardTitle>
+                    <CardDescription>강사 정보를 추가하거나 수정합니다.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                      <Label>섹션 제목</Label>
+                      <Input 
+                        value={localConfig.instructors?.title || ""} 
+                        onChange={e => setLocalConfig({
+                          ...localConfig, 
+                          instructors: { ...(localConfig.instructors || { title: "", items: [] }), title: e.target.value }
+                        })} 
+                      />
+                    </div>
+                    <Separator />
+                    <div className="space-y-4">
+                      {(localConfig.instructors?.items || []).map((instructor, index) => (
+                        <div key={instructor.id} className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+                          <div className="flex justify-between items-center">
+                            <Badge>강사 {index + 1}</Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-red-500"
+                              onClick={() => {
+                                const newItems = localConfig.instructors?.items.filter(i => i.id !== instructor.id) || [];
+                                setLocalConfig({
+                                  ...localConfig,
+                                  instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                });
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs">이름</Label>
+                              <Input 
+                                value={instructor.name} 
+                                onChange={e => {
+                                  const newItems = [...(localConfig.instructors?.items || [])];
+                                  newItems[index] = { ...instructor, name: e.target.value };
+                                  setLocalConfig({
+                                    ...localConfig,
+                                    instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                  });
+                                }}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs">직함</Label>
+                              <Input 
+                                value={instructor.role} 
+                                onChange={e => {
+                                  const newItems = [...(localConfig.instructors?.items || [])];
+                                  newItems[index] = { ...instructor, role: e.target.value };
+                                  setLocalConfig({
+                                    ...localConfig,
+                                    instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                  });
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">사진</Label>
+                            <div className="flex gap-2">
+                              <Input 
+                                value={instructor.imageUrl} 
+                                placeholder="이미지 URL 또는 파일 첨부"
+                                onChange={e => {
+                                  const newItems = [...(localConfig.instructors?.items || [])];
+                                  newItems[index] = { ...instructor, imageUrl: e.target.value };
+                                  setLocalConfig({
+                                    ...localConfig,
+                                    instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                  });
+                                }}
+                              />
+                              <div className="relative">
+                                <Button variant="outline" size="icon" className="shrink-0">
+                                  <Upload className="w-4 h-4" />
+                                </Button>
+                                <input 
+                                  type="file" 
+                                  accept="image/*"
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                  onChange={e => handleFileUpload(e, (url) => {
+                                    const newItems = [...(localConfig.instructors?.items || [])];
+                                    newItems[index] = { ...instructor, imageUrl: url };
+                                    setLocalConfig({
+                                      ...localConfig,
+                                      instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                    });
+                                  })}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">소개</Label>
+                            <Textarea 
+                              value={instructor.bio} 
+                              onChange={e => {
+                                const newItems = [...(localConfig.instructors?.items || [])];
+                                newItems[index] = { ...instructor, bio: e.target.value };
+                                setLocalConfig({
+                                  ...localConfig,
+                                  instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <Label className="text-xs">경력 사항</Label>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-7 text-xs gap-1"
+                                onClick={() => {
+                                  const newItems = [...(localConfig.instructors?.items || [])];
+                                  const currentExp = instructor.experience || [];
+                                  newItems[index] = { ...instructor, experience: [...currentExp, ""] };
+                                  setLocalConfig({
+                                    ...localConfig,
+                                    instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                  });
+                                }}
+                              >
+                                <Plus className="w-3 h-3" /> 항목 추가
+                              </Button>
+                            </div>
+                            <div className="space-y-2">
+                              {(instructor.experience || []).map((exp, expIndex) => (
+                                <div key={expIndex} className="flex gap-2">
+                                  <Input 
+                                    value={exp} 
+                                    placeholder="경력 내용을 입력하세요 (예: 도쿄 외국어 대학교 졸업)"
+                                    onChange={e => {
+                                      const newItems = [...(localConfig.instructors?.items || [])];
+                                      const newExp = [...(instructor.experience || [])];
+                                      newExp[expIndex] = e.target.value;
+                                      newItems[index] = { ...instructor, experience: newExp };
+                                      setLocalConfig({
+                                        ...localConfig,
+                                        instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                      });
+                                    }}
+                                  />
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="shrink-0 text-gray-400 hover:text-red-500"
+                                    onClick={() => {
+                                      const newItems = [...(localConfig.instructors?.items || [])];
+                                      const newExp = (instructor.experience || []).filter((_, i) => i !== expIndex);
+                                      newItems[index] = { ...instructor, experience: newExp };
+                                      setLocalConfig({
+                                        ...localConfig,
+                                        instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              {(!instructor.experience || instructor.experience.length === 0) && (
+                                <p className="text-xs text-gray-400 italic py-2">등록된 경력이 없습니다. 항목을 추가해 주세요.</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <Button 
+                        variant="outline" 
+                        className="w-full border-dashed"
+                        onClick={() => {
+                          const newItem = {
+                            id: Date.now().toString(),
+                            name: "새 강사",
+                            role: "직함",
+                            bio: "소개 내용을 입력하세요.",
+                            imageUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=400&auto=format&fit=crop"
+                          };
+                          const newItems = [...(localConfig.instructors?.items || []), newItem];
+                          setLocalConfig({
+                            ...localConfig,
+                            instructors: { ...(localConfig.instructors || { title: "", items: [] }), items: newItems }
+                          });
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-2" /> 강사 추가
+                      </Button>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="bg-gray-50 border-t px-6 py-4 flex justify-end">
+                    <Button onClick={handleSaveConfig} className="gap-2">
+                      <Save className="w-4 h-4" /> 강사 정보 저장
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              {/* Gallery */}
+              <TabsContent value="gallery" className="mt-0 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>갤러리 관리</CardTitle>
+                    <CardDescription>교습소 내부 및 수업 사진을 관리합니다.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                      <Label>섹션 제목</Label>
+                      <Input 
+                        value={localConfig.gallery?.title || ""} 
+                        onChange={e => setLocalConfig({
+                          ...localConfig, 
+                          gallery: { ...(localConfig.gallery || { title: "", images: [] }), title: e.target.value }
+                        })} 
+                      />
+                    </div>
+                    <Separator />
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {(localConfig.gallery?.images || []).map((image, index) => (
+                        <div key={image.id} className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                          <div className="relative aspect-video rounded-lg overflow-hidden border">
+                            <img src={image.url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <Button 
+                              variant="destructive" 
+                              size="icon" 
+                              className="absolute top-2 right-2 h-8 w-8"
+                              onClick={() => {
+                                const newImages = localConfig.gallery?.images.filter(img => img.id !== image.id) || [];
+                                setLocalConfig({
+                                  ...localConfig,
+                                  gallery: { ...(localConfig.gallery || { title: "", images: [] }), images: newImages }
+                                });
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">이미지</Label>
+                            <div className="flex gap-2">
+                              <Input 
+                                value={image.url} 
+                                placeholder="이미지 URL 또는 파일 첨부"
+                                onChange={e => {
+                                  const newImages = [...(localConfig.gallery?.images || [])];
+                                  newImages[index] = { ...image, url: e.target.value };
+                                  setLocalConfig({
+                                    ...localConfig,
+                                    gallery: { ...(localConfig.gallery || { title: "", images: [] }), images: newImages }
+                                  });
+                                }}
+                              />
+                              <div className="relative">
+                                <Button variant="outline" size="icon" className="shrink-0">
+                                  <Upload className="w-4 h-4" />
+                                </Button>
+                                <input 
+                                  type="file" 
+                                  accept="image/*"
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                  onChange={e => handleFileUpload(e, (url) => {
+                                    const newImages = [...(localConfig.gallery?.images || [])];
+                                    newImages[index] = { ...image, url: url };
+                                    setLocalConfig({
+                                      ...localConfig,
+                                      gallery: { ...(localConfig.gallery || { title: "", images: [] }), images: newImages }
+                                    });
+                                  })}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">설명 (캡션)</Label>
+                            <Input 
+                              value={image.caption} 
+                              onChange={e => {
+                                const newImages = [...(localConfig.gallery?.images || [])];
+                                newImages[index] = { ...image, caption: e.target.value };
+                                setLocalConfig({
+                                  ...localConfig,
+                                  gallery: { ...(localConfig.gallery || { title: "", images: [] }), images: newImages }
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <Button 
+                        variant="outline" 
+                        className="aspect-video border-dashed flex flex-col gap-2"
+                        onClick={() => {
+                          const newImage = {
+                            id: Date.now().toString(),
+                            url: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=800&auto=format&fit=crop",
+                            caption: "새 이미지 설명"
+                          };
+                          const newImages = [...(localConfig.gallery?.images || []), newImage];
+                          setLocalConfig({
+                            ...localConfig,
+                            gallery: { ...(localConfig.gallery || { title: "", images: [] }), images: newImages }
+                          });
+                        }}
+                      >
+                        <Plus className="w-6 h-6" />
+                        <span>이미지 추가</span>
+                      </Button>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="bg-gray-50 border-t px-6 py-4 flex justify-end">
+                    <Button onClick={handleSaveConfig} className="gap-2">
+                      <Save className="w-4 h-4" /> 갤러리 저장
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              {/* Layout & Order */}
+              <TabsContent value="layout" className="mt-0 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>섹션 순서 관리</CardTitle>
+                    <CardDescription>사이트의 각 섹션이 나타나는 순서를 변경합니다.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      {currentSectionOrder.map((sectionId, index) => (
+                        <div key={sectionId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="w-6 h-6 rounded-full flex items-center justify-center p-0">
+                              {index + 1}
+                            </Badge>
+                            <span className="font-medium">
+                              {sectionId === 'about' && '교습소 소개'}
+                              {sectionId === 'courses' && '교육 과정'}
+                              {sectionId === 'timetable' && '시간표'}
+                              {sectionId === 'posts' && '치바 쇼츠'}
+                              {sectionId === 'contact' && '문의하기'}
+                              {sectionId === 'gallery' && '갤러리'}
+                              {sectionId === 'instructors' && '강사 소개'}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              disabled={index === 0}
+                              onClick={() => {
+                                const newOrder = [...currentSectionOrder];
+                                [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                                setLocalConfig({...localConfig, sectionOrder: newOrder});
+                              }}
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              disabled={index === currentSectionOrder.length - 1}
+                              onClick={() => {
+                                const newOrder = [...currentSectionOrder];
+                                [newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
+                                setLocalConfig({...localConfig, sectionOrder: newOrder});
+                              }}
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="bg-gray-50 border-t px-6 py-4 flex justify-end">
+                    <Button onClick={handleSaveConfig} className="gap-2">
+                      <Save className="w-4 h-4" /> 순서 저장
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
               {/* General Settings */}
               <TabsContent value="general" className="mt-0 space-y-6">
                 <Card>
@@ -425,10 +955,32 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                   </Button>
                 </div>
 
-                {localCourses.map((course) => (
+                {localCourses.map((course, index) => (
                   <Card key={course.id}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-gray-50/50">
-                      <CardTitle className="text-base">{course.name || "과정명 없음"}</CardTitle>
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6" 
+                            disabled={index === 0}
+                            onClick={() => moveCourse(index, 'up')}
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6" 
+                            disabled={index === localCourses.length - 1}
+                            onClick={() => moveCourse(index, 'down')}
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <CardTitle className="text-base">{course.name || "과정명 없음"}</CardTitle>
+                      </div>
                       <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => deleteCourse(course.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -593,129 +1145,6 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                   <CardFooter className="bg-gray-50 border-t px-6 py-4 flex justify-end">
                     <Button onClick={handleSaveConfig} className="gap-2">
                       <Save className="w-4 h-4" /> 시간표 저장
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-
-              {/* Instructor Management */}
-              <TabsContent value="instructor" className="mt-0 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>강사 소개 관리</CardTitle>
-                    <CardDescription>대표 강사님의 프로필과 약력을 관리합니다.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>강사명</Label>
-                        <Input 
-                          value={localConfig.instructor?.name || ""} 
-                          onChange={e => setLocalConfig({
-                            ...localConfig, 
-                            instructor: { ...(localConfig.instructor || DEFAULT_CONFIG.instructor!), name: e.target.value }
-                          })} 
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>직함/역할</Label>
-                        <Input 
-                          value={localConfig.instructor?.role || ""} 
-                          onChange={e => setLocalConfig({
-                            ...localConfig, 
-                            instructor: { ...(localConfig.instructor || DEFAULT_CONFIG.instructor!), role: e.target.value }
-                          })} 
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>강사 소개 (Bio)</Label>
-                      <Textarea 
-                        rows={4}
-                        value={localConfig.instructor?.bio || ""} 
-                        onChange={e => setLocalConfig({
-                          ...localConfig, 
-                          instructor: { ...(localConfig.instructor || DEFAULT_CONFIG.instructor!), bio: e.target.value }
-                        })} 
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>강사 사진</Label>
-                      <div className="flex gap-4 items-start">
-                        <div className="flex-1">
-                          <Input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setLocalConfig({
-                                    ...localConfig, 
-                                    instructor: { ...(localConfig.instructor || DEFAULT_CONFIG.instructor!), imageUrl: reader.result as string }
-                                  });
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }} 
-                            className="cursor-pointer"
-                          />
-                        </div>
-                        {localConfig.instructor?.imageUrl && (
-                          <div className="w-20 h-24 rounded border overflow-hidden shrink-0 bg-gray-100">
-                            <img src={localConfig.instructor.imageUrl} alt="Instructor Preview" className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <Label>주요 약력 및 경력</Label>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          const currentExp = localConfig.instructor?.experience || [];
-                          setLocalConfig({
-                            ...localConfig,
-                            instructor: { ...(localConfig.instructor || DEFAULT_CONFIG.instructor!), experience: [...currentExp, "새로운 경력 사항"] }
-                          });
-                        }}>
-                          <Plus className="w-4 h-4 mr-2" /> 추가
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        {(localConfig.instructor?.experience || []).map((exp, idx) => (
-                          <div key={idx} className="flex gap-2">
-                            <Input 
-                              value={exp} 
-                              onChange={e => {
-                                const newExp = [...(localConfig.instructor?.experience || [])];
-                                newExp[idx] = e.target.value;
-                                setLocalConfig({
-                                  ...localConfig,
-                                  instructor: { ...(localConfig.instructor || DEFAULT_CONFIG.instructor!), experience: newExp }
-                                });
-                              }}
-                            />
-                            <Button variant="ghost" size="icon" className="text-red-500 shrink-0" onClick={() => {
-                              const newExp = (localConfig.instructor?.experience || []).filter((_, i) => i !== idx);
-                              setLocalConfig({
-                                ...localConfig,
-                                instructor: { ...(localConfig.instructor || DEFAULT_CONFIG.instructor!), experience: newExp }
-                              });
-                            }}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="bg-gray-50 border-t px-6 py-4 flex justify-end">
-                    <Button onClick={handleSaveConfig} className="gap-2">
-                      <Save className="w-4 h-4" /> 강사 정보 저장
                     </Button>
                   </CardFooter>
                 </Card>
