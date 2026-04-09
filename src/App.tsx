@@ -560,24 +560,24 @@ export default function App() {
                   <div className="p-10 lg:p-16 text-white">
                     <h2 className="text-3xl font-bold mb-8">지금 바로 상담받으세요</h2>
                     <div className="space-y-6">
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                      <a href={`tel:${config.contactPhone}`} className="flex items-start gap-4 group hover:opacity-80 transition-opacity">
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-colors">
                           <Phone className="w-5 h-5" />
                         </div>
                         <div>
                           <p className="text-sm text-gray-400 mb-1">전화 문의</p>
                           <p className="text-lg font-medium">{config.contactPhone}</p>
                         </div>
-                      </div>
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                      </a>
+                      <a href={`mailto:${config.contactEmail}`} className="flex items-start gap-4 group hover:opacity-80 transition-opacity">
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-colors">
                           <Mail className="w-5 h-5" />
                         </div>
                         <div>
                           <p className="text-sm text-gray-400 mb-1">이메일 문의</p>
                           <p className="text-lg font-medium">{config.contactEmail}</p>
                         </div>
-                      </div>
+                      </a>
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                           <MapPin className="w-5 h-5" />
@@ -711,9 +711,11 @@ export default function App() {
                       </a>
                     );
                   })}
-                  <Button style={{ backgroundColor: config.primaryColor, color: '#000' }} className="font-semibold">
-                    상담 예약
-                  </Button>
+                  <a href="http://pf.kakao.com/_JlvdX/chat" target="_blank" rel="noopener noreferrer">
+                    <Button style={{ backgroundColor: config.primaryColor, color: '#000' }} className="font-semibold">
+                      상담 예약
+                    </Button>
+                  </a>
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -757,7 +759,9 @@ export default function App() {
                       );
                     })}
                     <div className="pt-4">
-                      <Button className="w-full" style={{ backgroundColor: fullConfig.primaryColor, color: '#000' }}>상담 예약</Button>
+                      <a href="http://pf.kakao.com/_JlvdX/chat" target="_blank" rel="noopener noreferrer">
+                        <Button className="w-full" style={{ backgroundColor: fullConfig.primaryColor, color: '#000' }}>상담 예약</Button>
+                      </a>
                     </div>
                   </div>
                 </motion.div>
