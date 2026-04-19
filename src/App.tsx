@@ -15,7 +15,19 @@ import { doc, onSnapshot, setDoc, collection, query, orderBy, deleteDoc } from '
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function App() {
-  const [config, setConfig] = useState<SiteConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<SiteConfig>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('site_config');
+      if (saved) {
+        try {
+          return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+        } catch (e) {
+          return DEFAULT_CONFIG;
+        }
+      }
+    }
+    return DEFAULT_CONFIG;
+  });
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
   const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
   const [instructors, setInstructors] = useState<Instructor[]>(DEFAULT_CONFIG.instructors?.items || []);
@@ -43,7 +55,9 @@ export default function App() {
     const unsubConfig = onSnapshot(doc(db, 'settings', 'config'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as SiteConfig;
-        setConfig({ ...DEFAULT_CONFIG, ...data });
+        const newConfig = { ...DEFAULT_CONFIG, ...data };
+        setConfig(newConfig);
+        localStorage.setItem('site_config', JSON.stringify(data));
       } else {
         // Initialize with default if not exists
         setDoc(doc(db, 'settings', 'config'), DEFAULT_CONFIG);
