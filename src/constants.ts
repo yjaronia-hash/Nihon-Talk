@@ -1,7 +1,7 @@
 import { SiteConfig, Post, Course } from "./types";
 
 export const DEFAULT_CONFIG: SiteConfig = {
-  name: "니혼톡 (NihonTalk)",
+  name: "니혼톡 (Nihon Talk)",
   title: "원어민과 함께하는 진짜 일본어 회화",
   description: "일본어 원어민 강사진과 함께하는 1:1 맞춤형 회화 교습소입니다. 자연스러운 표현과 비즈니스 매너까지 완벽하게 마스터하세요.",
   heroTitle: "일본어, 이제 원어민처럼 말하세요",
@@ -9,7 +9,8 @@ export const DEFAULT_CONFIG: SiteConfig = {
   heroButtonText: "체험레슨",
   primaryColor: "#FACC15", // Tailwind yellow-400
   fontFamily: "Inter, sans-serif",
-  logoUrl: "https://files.oaiusercontent.com/file-K18u27f918u27f918u27f9?se=2026-04-09T03%3A23%3A39Z&sp=r&sv=24.8&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3Dshiba.png&sig=placeholder_signature",
+  logoUrl: "https://files.oaiusercontent.com/file-m0vW5Sg8m6p8Y9f9Y9f9Y9f9?se=2026-04-19T08%3A07%3A43Z&sp=r&sv=24.8&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3Dchiba_new_logo.png&sig=u%2BJp7P6p6P6p6P6p6P6p6P6p6P6p6P6p6P6p6P6p6P6Pg%3D",
+  loadingLogoUrl: "https://files.oaiusercontent.com/file-m0vW5Sg8m6p8Y9f9Y9f9Y9f9?se=2026-04-19T08%3A07%3A43Z&sp=r&sv=24.8&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3Dchiba_new_logo.png&sig=u%2BJp7P6p6P6p6P6p6P6p6P6p6P6p6P6p6P6p6P6p6P6Pg%3D",
   contactEmail: "info@nihontalk.com",
   contactPhone: "02-123-4567",
   address: "서울특별시 강남구 테헤란로 123, 4층",

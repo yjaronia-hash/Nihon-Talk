@@ -24,6 +24,7 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(false);
   
   const isUserAdmin = user?.email === 'yjaronia@gmail.com';
 
@@ -47,6 +48,7 @@ export default function App() {
         // Initialize with default if not exists
         setDoc(doc(db, 'settings', 'config'), DEFAULT_CONFIG);
       }
+      setIsDataReady(true);
     });
 
     // Posts listener
@@ -654,28 +656,58 @@ export default function App() {
     <div className="min-h-screen bg-white" style={{ fontFamily: config.fontFamily }}>
       <Toaster position="top-right" />
       
-      {/* Admin Toggle Button (Floating) */}
-      <Button 
-        variant="outline" 
-        size="icon" 
-        className="fixed bottom-6 right-6 z-50 rounded-full shadow-lg bg-white hover:bg-gray-50"
-        onClick={toggleAdmin}
-      >
-        {isAdminMode ? <Eye className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
-      </Button>
-
-      {isAdminMode ? (
-        <AdminDashboard 
-          config={fullConfig} 
-          setConfig={handleUpdateConfig} 
-          posts={posts} 
-          setPosts={handleUpdatePosts}
-          courses={courses}
-          setCourses={handleUpdateCourses}
-          onClose={() => setIsAdminMode(false)}
-        />
+      {!isDataReady ? (
+        <div className="fixed inset-0 bg-white flex items-center justify-center z-[100]">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-6"
+          >
+            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-yellow-400 bg-white shadow-xl flex items-center justify-center p-2 relative">
+              <img 
+                src={config.loadingLogoUrl || DEFAULT_CONFIG.loadingLogoUrl || DEFAULT_CONFIG.logoUrl} 
+                alt="Chiba Logo" 
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-xl font-bold text-gray-900 tracking-tight">NIHON TALK</span>
+              <div className="w-32 h-1 bg-gray-100 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ x: '-100%' }}
+                  animate={{ x: '100%' }}
+                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                  className="w-full h-full bg-yellow-400"
+                />
+              </div>
+            </div>
+          </motion.div>
+        </div>
       ) : (
-        <div className="flex flex-col">
+        <>
+          {/* Admin Toggle Button (Floating) */}
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="fixed bottom-6 right-6 z-50 rounded-full shadow-lg bg-white hover:bg-gray-50"
+            onClick={toggleAdmin}
+          >
+            {isAdminMode ? <Eye className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
+          </Button>
+
+          {isAdminMode ? (
+            <AdminDashboard 
+              config={fullConfig} 
+              setConfig={handleUpdateConfig} 
+              posts={posts} 
+              setPosts={handleUpdatePosts}
+              courses={courses}
+              setCourses={handleUpdateCourses}
+              onClose={() => setIsAdminMode(false)}
+            />
+          ) : (
+            <div className="flex flex-col">
           {/* Navigation */}
           <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -689,7 +721,7 @@ export default function App() {
                   </motion.div>
                   <div className="flex flex-col">
                     <span className="text-xl font-bold tracking-tight text-gray-900 leading-none">{config.name}</span>
-                    <span className="text-[10px] font-medium text-yellow-600 tracking-widest mt-1">NIHONGO TALK</span>
+                    <span className="text-[10px] font-medium text-yellow-600 tracking-widest mt-1">NIHON TALK</span>
                   </div>
                 </div>
                 
@@ -711,11 +743,7 @@ export default function App() {
                       </a>
                     );
                   })}
-                  <a href="http://pf.kakao.com/_JlvdX/chat" target="_blank" rel="noopener noreferrer">
-                    <Button style={{ backgroundColor: config.primaryColor, color: '#000' }} className="font-semibold">
-                      상담 예약
-                    </Button>
-                  </a>
+                  {/* Desktop Menu - Consultation button removed */}
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -758,11 +786,7 @@ export default function App() {
                         </a>
                       );
                     })}
-                    <div className="pt-4">
-                      <a href="http://pf.kakao.com/_JlvdX/chat" target="_blank" rel="noopener noreferrer">
-                        <Button className="w-full" style={{ backgroundColor: fullConfig.primaryColor, color: '#000' }}>상담 예약</Button>
-                      </a>
-                    </div>
+                    {/* Mobile Menu - Consultation button removed */}
                   </div>
                 </motion.div>
               )}
@@ -788,11 +812,7 @@ export default function App() {
                   <p className="text-lg text-gray-600 mb-8 max-w-lg leading-relaxed">
                     {fullConfig.heroSubtitle}
                   </p>
-                  <div className="flex flex-wrap gap-4">
-                    <Button size="lg" style={{ backgroundColor: fullConfig.primaryColor, color: '#000' }} className="px-8 font-bold shadow-lg shadow-yellow-200">
-                      {fullConfig.heroButtonText || "체험레슨"}
-                    </Button>
-                  </div>
+                  {/* Hero button removed */}
                 </motion.div>
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -854,6 +874,8 @@ export default function App() {
           </footer>
         </div>
       )}
-    </div>
+    </>
+  )}
+</div>
   );
 }

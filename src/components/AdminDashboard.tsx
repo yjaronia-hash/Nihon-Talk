@@ -747,7 +747,7 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                                   setLocalConfig({...localConfig, logoUrl: reader.result as string});
                                 };
                                 reader.readAsDataURL(file);
-                              }
+                               }
                             }} 
                             className="cursor-pointer"
                           />
@@ -755,6 +755,32 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                         </div>
                         <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400 shrink-0 bg-white flex items-center justify-center p-1">
                           <img src={localConfig.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>로딩 화면 로고 (선택 사항)</Label>
+                      <div className="flex gap-4 items-center">
+                        <div className="flex-1">
+                          <Input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setLocalConfig({...localConfig, loadingLogoUrl: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }} 
+                            className="cursor-pointer"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-1">로딩 화면에서 보여줄 로고를 설정하세요. 설정하지 않으면 기본 로고가 사용됩니다.</p>
+                        </div>
+                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400 shrink-0 bg-white flex items-center justify-center p-1">
+                          <img src={localConfig.loadingLogoUrl || localConfig.logoUrl} alt="Loading Logo Preview" className="w-full h-full object-contain" />
                         </div>
                       </div>
                     </div>

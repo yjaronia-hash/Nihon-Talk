@@ -8,6 +8,7 @@ export interface SiteConfig {
   primaryColor: string;
   fontFamily: string;
   logoUrl: string;
+  loadingLogoUrl?: string;
   contactEmail: string;
   contactPhone: string;
   address: string;
