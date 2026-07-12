@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 interface TimetableProps {
   month: string;
   schedule: ScheduleItem[];
+  timeSlots?: string[];
 }
 
 const DAYS = ['월', '화', '수', '목', '금'];
@@ -61,44 +62,44 @@ const isItemInSlot = (item: { timeSlot: string }, slot: string): boolean => {
   return itemStart < slotEnd && itemEnd > slotStart;
 };
 
-const isItemStartingAtSlot = (item: { timeSlot: string }, sIdx: number): boolean => {
-  const intersectsCurrent = isItemInSlot(item, DEFAULT_TIME_SLOTS[sIdx]);
-  if (!intersectsCurrent) return false;
-  if (sIdx === 0) return true;
-  const intersectsPrevious = isItemInSlot(item, DEFAULT_TIME_SLOTS[sIdx - 1]);
-  return !intersectsPrevious;
-};
-
-const getRowSpan = (item: { timeSlot: string }, startIdx: number): number => {
-  let span = 1;
-  for (let i = startIdx + 1; i < DEFAULT_TIME_SLOTS.length; i++) {
-    if (isItemInSlot(item, DEFAULT_TIME_SLOTS[i])) {
-      span++;
-    } else {
-      break;
-    }
-  }
-  return span;
-};
-
-const isCellCovered = (day: string, sIdx: number, schedule: any[]): boolean => {
-  for (let prevIdx = 0; prevIdx < sIdx; prevIdx++) {
-    const prevItems = schedule.filter(item => item.day === day && isItemStartingAtSlot(item, prevIdx));
-    if (prevItems.length > 0) {
-      const span = Math.max(...prevItems.map(item => getRowSpan(item, prevIdx)));
-      if (prevIdx + span > sIdx) {
-        return true;
-      }
-    }
-  }
-  return false;
-};
-
-export default function Timetable({ month, schedule = [] }: TimetableProps) {
+export default function Timetable({ month, schedule = [], timeSlots: timeSlotsProp }: TimetableProps) {
   const [activeDay, setActiveDay] = useState('월');
   
   const safeSchedule = Array.isArray(schedule) ? schedule : [];
-  const timeSlots = DEFAULT_TIME_SLOTS;
+  const timeSlots = timeSlotsProp && timeSlotsProp.length > 0 ? timeSlotsProp : DEFAULT_TIME_SLOTS;
+
+  const isItemStartingAtSlot = (item: { timeSlot: string }, sIdx: number): boolean => {
+    const intersectsCurrent = isItemInSlot(item, timeSlots[sIdx]);
+    if (!intersectsCurrent) return false;
+    if (sIdx === 0) return true;
+    const intersectsPrevious = isItemInSlot(item, timeSlots[sIdx - 1]);
+    return !intersectsPrevious;
+  };
+
+  const getRowSpan = (item: { timeSlot: string }, startIdx: number): number => {
+    let span = 1;
+    for (let i = startIdx + 1; i < timeSlots.length; i++) {
+      if (isItemInSlot(item, timeSlots[i])) {
+        span++;
+      } else {
+        break;
+      }
+    }
+    return span;
+  };
+
+  const isCellCovered = (day: string, sIdx: number, schedule: any[]): boolean => {
+    for (let prevIdx = 0; prevIdx < sIdx; prevIdx++) {
+      const prevItems = schedule.filter(item => item.day === day && isItemStartingAtSlot(item, prevIdx));
+      if (prevItems.length > 0) {
+        const span = Math.max(...prevItems.map(item => getRowSpan(item, prevIdx)));
+        if (prevIdx + span > sIdx) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
 
   // For Mobile: filter and sort items of the active day to avoid duplicating across multiple slots
   const dayItems = safeSchedule

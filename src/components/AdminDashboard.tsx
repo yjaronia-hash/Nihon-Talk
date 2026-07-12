@@ -119,6 +119,41 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
   const [localCourses, setLocalCourses] = useState(courses);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
 
+  const timeSlots = localConfig.timeSlots && localConfig.timeSlots.length > 0 ? localConfig.timeSlots : DEFAULT_TIME_SLOTS;
+
+  const isItemStartingAtSlot = (item: { timeSlot: string }, sIdx: number): boolean => {
+    const intersectsCurrent = isItemInSlot(item, timeSlots[sIdx]);
+    if (!intersectsCurrent) return false;
+    if (sIdx === 0) return true;
+    const intersectsPrevious = isItemInSlot(item, timeSlots[sIdx - 1]);
+    return !intersectsPrevious;
+  };
+
+  const getRowSpan = (item: { timeSlot: string }, startIdx: number): number => {
+    let span = 1;
+    for (let i = startIdx + 1; i < timeSlots.length; i++) {
+      if (isItemInSlot(item, timeSlots[i])) {
+        span++;
+      } else {
+        break;
+      }
+    }
+    return span;
+  };
+
+  const isCellCovered = (day: string, sIdx: number, scheduleList: any[]): boolean => {
+    for (let prevIdx = 0; prevIdx < sIdx; prevIdx++) {
+      const prevItems = scheduleList.filter(item => item.day === day && isItemStartingAtSlot(item, prevIdx));
+      if (prevItems.length > 0) {
+        const span = Math.max(...prevItems.map(item => getRowSpan(item, prevIdx)));
+        if (prevIdx + span > sIdx) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   // Sync local state with props when they change (e.g. after Firestore load)
   React.useEffect(() => {
     setLocalConfig(config);
@@ -240,18 +275,67 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
     }
   };
 
+  const compressImage = (file: File, maxWidth = 800, maxHeight = 600, quality = 0.7): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => {
+          resolve(event.target?.result as string);
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => {
+        resolve('');
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 800000) { // ~800KB limit to stay safe with Firestore 1MB limit
-        toast.error("이미지 크기가 너무 큽니다. 800KB 이하의 이미지를 사용해주세요.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        callback(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      toast.promise(
+        compressImage(file, 800, 600, 0.75).then((compressedUrl) => {
+          callback(compressedUrl);
+          return compressedUrl;
+        }),
+        {
+          loading: '이미지를 초경량 최적화하는 중...',
+          success: '이미지 최적화 완료! (용량 감소 완료)',
+          error: '이미지 최적화 중 오류가 발생했습니다.',
+        }
+      );
     }
   };
 
@@ -812,16 +896,9 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                           <Input 
                             type="file" 
                             accept="image/*"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setLocalConfig({...localConfig, logoUrl: reader.result as string});
-                                };
-                                reader.readAsDataURL(file);
-                               }
-                            }} 
+                            onChange={e => handleFileUpload(e, (url) => {
+                              setLocalConfig({...localConfig, logoUrl: url});
+                            })} 
                             className="cursor-pointer"
                           />
                           <p className="text-[10px] text-gray-400 mt-1">파일을 선택하여 마스코트 '치바' 이미지를 변경하세요.</p>
@@ -838,16 +915,9 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                           <Input 
                             type="file" 
                             accept="image/*"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setLocalConfig({...localConfig, loadingLogoUrl: reader.result as string});
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }} 
+                            onChange={e => handleFileUpload(e, (url) => {
+                              setLocalConfig({...localConfig, loadingLogoUrl: url});
+                            })} 
                             className="cursor-pointer"
                           />
                           <p className="text-[10px] text-gray-400 mt-1">로딩 화면에서 보여줄 로고를 설정하세요. 설정하지 않으면 기본 로고가 사용됩니다.</p>
@@ -912,16 +982,9 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                           <Input 
                             type="file" 
                             accept="image/*"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setLocalConfig({...localConfig, heroImageUrl: reader.result as string});
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }} 
+                            onChange={e => handleFileUpload(e, (url) => {
+                              setLocalConfig({...localConfig, heroImageUrl: url});
+                            })} 
                             className="cursor-pointer"
                           />
                           <p className="text-[10px] text-gray-400 mt-1">파일을 선택하여 첫 화면의 메인 이미지를 변경하세요.</p>
@@ -1009,16 +1072,9 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                           <Input 
                             type="file" 
                             accept="image/*"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  updatePost(post.id, { imageUrl: reader.result as string });
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }} 
+                            onChange={e => handleFileUpload(e, (url) => {
+                              updatePost(post.id, { imageUrl: url });
+                            })} 
                             className="cursor-pointer"
                           />
                           <div className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0 border">
@@ -1106,16 +1162,9 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                             <Input 
                               type="file" 
                               accept="image/*"
-                              onChange={e => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    updateCourse(course.id, { imageUrl: reader.result as string });
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }} 
+                              onChange={e => handleFileUpload(e, (url) => {
+                                updateCourse(course.id, { imageUrl: url });
+                              })} 
                               className="cursor-pointer"
                             />
                             <div className="w-10 h-10 rounded bg-gray-100 overflow-hidden shrink-0 border">
@@ -1143,8 +1192,163 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
               <TabsContent value="timetable" className="mt-0 space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>시간표 설정</CardTitle>
-                    <CardDescription>시간표의 칸을 클릭하여 수업을 추가하거나 수정하세요. 직관적으로 관리할 수 있습니다.</CardDescription>
+                    <CardTitle>시간표 시간대(슬롯) 노출 관리</CardTitle>
+                    <CardDescription>
+                      웹사이트 메인 시간표에 노출할 시간대를 간편하게 켜고 끌 수 있습니다. 
+                      원하시는 시간대를 활성화해 주세요. (예: 오전 10:00 - 13:00 시간대를 손쉽게 제거하거나 다시 추가할 수 있습니다.)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+                        <Label className="text-sm font-bold text-gray-700">노출 시간대 개별 및 일괄 제어</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            size="sm" 
+                            className="text-xs h-8 px-2.5 rounded-lg text-gray-600 hover:text-gray-950"
+                            onClick={() => {
+                              const rangeSlots = [
+                                "10:00-10:30", "10:30-11:00", "11:00-11:30", "11:30-12:00", "12:00-12:30", "12:30-13:00"
+                              ];
+                              const currentSlots = localConfig.timeSlots && localConfig.timeSlots.length > 0 
+                                ? [...localConfig.timeSlots] 
+                                : [...DEFAULT_TIME_SLOTS];
+                              const allEnabled = rangeSlots.every(s => currentSlots.includes(s));
+                              let newSlots: string[];
+                              if (allEnabled) {
+                                newSlots = currentSlots.filter(s => !rangeSlots.includes(s));
+                              } else {
+                                newSlots = Array.from(new Set([...currentSlots, ...rangeSlots]));
+                              }
+                              newSlots = [...newSlots].sort((a, b) => {
+                                const aTimes = parseSlot(a);
+                                const bTimes = parseSlot(b);
+                                if (!aTimes || !bTimes) return 0;
+                                return aTimes[0] - bTimes[0];
+                              });
+                              setLocalConfig({ ...localConfig, timeSlots: newSlots });
+                            }}
+                          >
+                            10:00-13:00 (오전) 켜기/끄기
+                          </Button>
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            size="sm" 
+                            className="text-xs h-8 px-2.5 rounded-lg text-gray-600 hover:text-gray-950"
+                            onClick={() => {
+                              const rangeSlots = [
+                                "13:00-13:30", "13:30-14:00", "14:00-14:30", "14:30-15:00", "15:00-15:30", "15:30-16:00",
+                                "16:00-16:30", "16:30-17:00", "17:00-17:30", "17:30-18:00"
+                              ];
+                              const currentSlots = localConfig.timeSlots && localConfig.timeSlots.length > 0 
+                                ? [...localConfig.timeSlots] 
+                                : [...DEFAULT_TIME_SLOTS];
+                              const allEnabled = rangeSlots.every(s => currentSlots.includes(s));
+                              let newSlots: string[];
+                              if (allEnabled) {
+                                newSlots = currentSlots.filter(s => !rangeSlots.includes(s));
+                              } else {
+                                newSlots = Array.from(new Set([...currentSlots, ...rangeSlots]));
+                              }
+                              newSlots = [...newSlots].sort((a, b) => {
+                                const aTimes = parseSlot(a);
+                                const bTimes = parseSlot(b);
+                                if (!aTimes || !bTimes) return 0;
+                                return aTimes[0] - bTimes[0];
+                              });
+                              setLocalConfig({ ...localConfig, timeSlots: newSlots });
+                            }}
+                          >
+                            13:00-18:00 (오후) 켜기/끄기
+                          </Button>
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            size="sm" 
+                            className="text-xs h-8 px-2.5 rounded-lg text-gray-600 hover:text-gray-950"
+                            onClick={() => {
+                              const rangeSlots = [
+                                "18:00-18:30", "18:30-19:00", "19:00-19:30", "19:30-20:00", "20:00-20:30", "20:30-21:00"
+                              ];
+                              const currentSlots = localConfig.timeSlots && localConfig.timeSlots.length > 0 
+                                ? [...localConfig.timeSlots] 
+                                : [...DEFAULT_TIME_SLOTS];
+                              const allEnabled = rangeSlots.every(s => currentSlots.includes(s));
+                              let newSlots: string[];
+                              if (allEnabled) {
+                                newSlots = currentSlots.filter(s => !rangeSlots.includes(s));
+                              } else {
+                                newSlots = Array.from(new Set([...currentSlots, ...rangeSlots]));
+                              }
+                              newSlots = [...newSlots].sort((a, b) => {
+                                const aTimes = parseSlot(a);
+                                const bTimes = parseSlot(b);
+                                if (!aTimes || !bTimes) return 0;
+                                return aTimes[0] - bTimes[0];
+                              });
+                              setLocalConfig({ ...localConfig, timeSlots: newSlots });
+                            }}
+                          >
+                            18:00-21:00 (저녁) 켜기/끄기
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 bg-gray-50/70 p-4 rounded-xl border border-gray-100">
+                        {[
+                          "10:00-10:30", "10:30-11:00", "11:00-11:30", "11:30-12:00", "12:00-12:30", "12:30-13:00",
+                          "13:00-13:30", "13:30-14:00", "14:00-14:30", "14:30-15:00", "15:00-15:30", "15:30-16:00",
+                          "16:00-16:30", "16:30-17:00", "17:00-17:30", "17:30-18:00", "18:00-18:30", "18:30-19:00",
+                          "19:00-19:30", "19:30-20:00", "20:00-20:30", "20:30-21:00"
+                        ].map(slot => {
+                          const isEnabled = timeSlots.includes(slot);
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => {
+                                const currentSlots = localConfig.timeSlots && localConfig.timeSlots.length > 0 
+                                  ? [...localConfig.timeSlots] 
+                                  : [...DEFAULT_TIME_SLOTS];
+                                let newSlots: string[];
+                                if (currentSlots.includes(slot)) {
+                                  newSlots = currentSlots.filter(s => s !== slot);
+                                } else {
+                                  newSlots = [...currentSlots, slot];
+                                }
+                                newSlots = [...newSlots].sort((a, b) => {
+                                  const aTimes = parseSlot(a);
+                                  const bTimes = parseSlot(b);
+                                  if (!aTimes || !bTimes) return 0;
+                                  return aTimes[0] - bTimes[0];
+                                });
+                                setLocalConfig({ ...localConfig, timeSlots: newSlots });
+                              }}
+                              className={`flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
+                                isEnabled 
+                                  ? "bg-gray-900 text-white border-gray-900 hover:bg-gray-800" 
+                                  : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700"
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${isEnabled ? "bg-green-400" : "bg-gray-300"}`} />
+                              {slot}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>수업 시간표 및 일정 배치</CardTitle>
+                    <CardDescription>
+                      활성화된 시간대로만 구성된 실시간 모형입니다. 각 셀을 클릭하여 수업을 배치하거나 일정을 자유롭게 편집하세요.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex items-center justify-between">
@@ -1164,92 +1368,96 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                     
                     <Separator />
                     
-                    <div className="border rounded-xl overflow-hidden shadow-sm bg-white overflow-x-auto">
-                      <table className="w-full border-collapse text-left min-w-[700px] table-fixed">
-                        <thead>
-                          <tr className="bg-gray-50 border-b">
-                            <th className="p-3 text-center text-[10px] font-bold text-gray-400 w-24 uppercase tracking-wider">Time</th>
-                            {DAYS.map(day => (
-                              <th key={day} className="p-3 text-center text-sm font-bold text-gray-700 border-l w-1/5">{day}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {DEFAULT_TIME_SLOTS.map((slot, sIdx) => (
-                            <tr key={slot} className="hover:bg-gray-50/20 transition-colors h-20">
-                              <td className="p-2 text-center text-[10px] font-medium text-gray-400 bg-gray-50/30 w-24 align-middle h-20">
-                                {slot}
-                              </td>
-                              {DAYS.map(day => {
-                                const scheduleList = localConfig.schedule || [];
-                                // Check if this cell is covered by a spanning class starting earlier
-                                if (isCellCovered(day, sIdx, scheduleList)) {
-                                  return null; // Skip rendering this cell since it's spanned by a rowSpan
-                                }
+                    {timeSlots.length === 0 ? (
+                      <div className="py-12 text-center text-gray-500 border border-dashed rounded-xl">
+                        선택된 시간대가 없습니다. 위의 '시간대(슬롯) 노출 관리'에서 시간대를 활성화해 주세요.
+                      </div>
+                    ) : (
+                      <div className="border rounded-xl overflow-hidden shadow-sm bg-white overflow-x-auto">
+                        <table className="w-full border-collapse text-left min-w-[700px] table-fixed">
+                          <thead>
+                            <tr className="bg-gray-50 border-b">
+                              <th className="p-3 text-center text-[10px] font-bold text-gray-400 w-24 uppercase tracking-wider">Time</th>
+                              {DAYS.map(day => (
+                                <th key={day} className="p-3 text-center text-sm font-bold text-gray-700 border-l w-1/5">{day}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {timeSlots.map((slot, sIdx) => (
+                              <tr key={slot} className="hover:bg-gray-50/20 transition-colors h-20">
+                                <td className="p-2 text-center text-[10px] font-medium text-gray-400 bg-gray-50/30 w-24 align-middle h-20">
+                                  {slot}
+                                </td>
+                                {DAYS.map(day => {
+                                  const scheduleList = localConfig.schedule || [];
+                                  if (isCellCovered(day, sIdx, scheduleList)) {
+                                    return null;
+                                  }
 
-                                const startingItems = scheduleList.filter(item => item.day === day && isItemStartingAtSlot(item, sIdx));
-                                if (startingItems.length > 0) {
-                                  const span = Math.max(...startingItems.map(item => getRowSpan(item, sIdx)));
+                                  const startingItems = scheduleList.filter(item => item.day === day && isItemStartingAtSlot(item, sIdx));
+                                  if (startingItems.length > 0) {
+                                    const span = Math.max(...startingItems.map(item => getRowSpan(item, sIdx)));
+                                    return (
+                                      <td 
+                                        key={`${day}-${slot}`} 
+                                        rowSpan={span} 
+                                        className="p-1 border-l h-1"
+                                      >
+                                        <div className="flex flex-col h-full justify-stretch">
+                                          {startingItems.map(item => (
+                                            <motion.div 
+                                              key={item.id}
+                                              layoutId={item.id}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingItem(item);
+                                              }}
+                                              className="p-1.5 rounded-md text-[10px] font-bold shadow-sm border border-black/5 truncate cursor-pointer hover:brightness-95 transition-all h-full flex-1 flex flex-col justify-center"
+                                              style={{ backgroundColor: item.color || '#f3f4f6', color: '#1f2937' }}
+                                            >
+                                              <div className="truncate">{item.className}</div>
+                                              <div className="text-[8px] opacity-60 font-mono">{item.timeSlot}</div>
+                                              {item.isGroup && <div className="text-[8px] opacity-50 font-normal">그룹</div>}
+                                            </motion.div>
+                                          ))}
+                                        </div>
+                                      </td>
+                                    );
+                                  }
+
                                   return (
                                     <td 
                                       key={`${day}-${slot}`} 
-                                      rowSpan={span} 
-                                      className="p-1 border-l h-1"
+                                      className="p-1 border-l h-20 hover:bg-blue-50/50 cursor-pointer transition-colors relative group/cell text-center align-middle"
+                                      onClick={() => {
+                                        const newItem: ScheduleItem = {
+                                          id: Date.now().toString(),
+                                          day,
+                                          timeSlot: slot,
+                                          className: "새 수업",
+                                          isGroup: false
+                                        };
+                                        setLocalConfig({...localConfig, schedule: [...(localConfig.schedule || []), newItem]});
+                                        setEditingItem(newItem);
+                                      }}
                                     >
-                                      <div className="flex flex-col h-full justify-stretch">
-                                        {startingItems.map(item => (
-                                          <motion.div 
-                                            key={item.id}
-                                            layoutId={item.id}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setEditingItem(item);
-                                            }}
-                                            className="p-1.5 rounded-md text-[10px] font-bold shadow-sm border border-black/5 truncate cursor-pointer hover:brightness-95 transition-all h-full flex-1 flex flex-col justify-center"
-                                            style={{ backgroundColor: item.color || '#f3f4f6', color: '#1f2937' }}
-                                          >
-                                            <div className="truncate">{item.className}</div>
-                                            <div className="text-[8px] opacity-60 font-mono">{item.timeSlot}</div>
-                                            {item.isGroup && <div className="text-[8px] opacity-50 font-normal">그룹</div>}
-                                          </motion.div>
-                                        ))}
+                                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 pointer-events-none">
+                                        <Plus className="w-4 h-4 text-blue-400" />
                                       </div>
                                     </td>
                                   );
-                                }
-
-                                // Empty cell
-                                return (
-                                  <td 
-                                    key={`${day}-${slot}`} 
-                                    className="p-1 border-l h-20 hover:bg-blue-50/50 cursor-pointer transition-colors relative group/cell text-center align-middle"
-                                    onClick={() => {
-                                      const newItem: ScheduleItem = {
-                                        id: Date.now().toString(),
-                                        day,
-                                        timeSlot: slot,
-                                        className: "새 수업",
-                                        isGroup: false
-                                      };
-                                      setLocalConfig({...localConfig, schedule: [...(localConfig.schedule || []), newItem]});
-                                      setEditingItem(newItem);
-                                    }}
-                                  >
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 pointer-events-none">
-                                      <Plus className="w-4 h-4 text-blue-400" />
-                                    </div>
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
                     <div className="flex justify-center">
                       <Button variant="outline" size="sm" className="rounded-full" onClick={() => {
-                        const time = prompt("새로운 시간대를 입력하세요 (예: 09:00-10:30)");
+                        const time = prompt("새로운 시간대를 직접 입력하세요 (예: 09:00-10:30)");
                         if (time) {
                           const newItem: ScheduleItem = {
                             id: Date.now().toString(),
@@ -1262,13 +1470,13 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                           setEditingItem(newItem);
                         }
                       }}>
-                        <Plus className="w-4 h-4 mr-2" /> 시간대 직접 추가
+                        <Plus className="w-4 h-4 mr-2" /> 비표준 시간대 직접 추가
                       </Button>
                     </div>
                   </CardContent>
                   <CardFooter className="bg-gray-50 border-t px-6 py-4 flex justify-end">
                     <Button onClick={handleSaveConfig} className="gap-2">
-                      <Save className="w-4 h-4" /> 시간표 저장
+                      <Save className="w-4 h-4" /> 시간표 설정 저장
                     </Button>
                   </CardFooter>
                 </Card>
@@ -1372,11 +1580,11 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                             />
                             <div className="w-10 h-10 rounded-lg border shadow-sm shrink-0" style={{ backgroundColor: editingItem.color || '#f3f4f6' }}></div>
                           </div>
-                          <div className="flex gap-2 mt-2">
-                            {['#FFD8A8', '#D3F9D8', '#A5D8FF', '#FFD3E0', '#F3F4F6'].map(color => (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {['#FFD8A8', '#FFF3BF', '#D3F9D8', '#C5F6FA', '#A5D8FF', '#E5DBFF', '#FFD3E0', '#FFE3E3', '#F3F4F6'].map(color => (
                               <button 
                                 key={color}
-                                className="w-6 h-6 rounded-full border border-black/5"
+                                className="w-6 h-6 rounded-full border border-black/10 hover:scale-110 transition-transform cursor-pointer"
                                 style={{ backgroundColor: color }}
                                 onClick={() => {
                                   const updated = { ...editingItem, color };

@@ -51,6 +51,24 @@ export const DEFAULT_CONFIG: SiteConfig = {
     { id: "14", day: "토", timeSlot: "14:30-16:00", className: "초급", isGroup: false },
   ],
   sectionOrder: ["courses", "about", "instructors", "gallery", "timetable", "posts", "contact"],
+  timeSlots: [
+    "13:00-13:30",
+    "13:30-14:00",
+    "14:00-14:30",
+    "14:30-15:00",
+    "15:00-15:30",
+    "15:30-16:00",
+    "16:00-16:30",
+    "16:30-17:00",
+    "17:00-17:30",
+    "17:30-18:00",
+    "18:00-18:30",
+    "18:30-19:00",
+    "19:00-19:30",
+    "19:30-20:00",
+    "20:00-20:30",
+    "20:30-21:00"
+  ],
   features: {
     title: "왜 니혼톡인가요?",
     items: [

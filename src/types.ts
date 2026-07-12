@@ -28,6 +28,7 @@ export interface SiteConfig {
   };
   scheduleMonth: string;
   schedule: ScheduleItem[];
+  timeSlots?: string[];
   sectionOrder?: string[];
   features?: {
     title: string;

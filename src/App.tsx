@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SiteConfig, Post, Course, Instructor } from './types';
 import { DEFAULT_CONFIG, INITIAL_POSTS, INITIAL_COURSES } from './constants';
-import { Menu, X, Instagram, Facebook, Youtube, Phone, Mail, MapPin, ChevronRight, Edit3, LayoutDashboard, Eye, BookOpen } from 'lucide-react';
+import { Menu, X, Instagram, Facebook, Youtube, Phone, Mail, MapPin, ChevronRight, Edit3, LayoutDashboard, Eye, BookOpen, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,10 +28,42 @@ export default function App() {
     }
     return DEFAULT_CONFIG;
   });
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
-  const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
-  const [instructors, setInstructors] = useState<Instructor[]>(DEFAULT_CONFIG.instructors?.items || []);
-  const [galleryImages, setGalleryImages] = useState<{ id: string; url: string; caption: string }[]>(DEFAULT_CONFIG.gallery?.images || []);
+  const [posts, setPosts] = useState<Post[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('site_posts');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return INITIAL_POSTS;
+  });
+  const [courses, setCourses] = useState<Course[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('site_courses');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return INITIAL_COURSES;
+  });
+  const [instructors, setInstructors] = useState<Instructor[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('site_instructors');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return DEFAULT_CONFIG.instructors?.items || [];
+  });
+  const [galleryImages, setGalleryImages] = useState<{ id: string; url: string; caption: string }[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('site_gallery');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return DEFAULT_CONFIG.gallery?.images || [];
+  });
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -60,7 +92,18 @@ export default function App() {
         localStorage.setItem('site_config', JSON.stringify(data));
       } else {
         // Initialize with default if not exists
-        setDoc(doc(db, 'settings', 'config'), DEFAULT_CONFIG);
+        setDoc(doc(db, 'settings', 'config'), DEFAULT_CONFIG).catch(e => console.warn("Seed config error:", e));
+      }
+      setIsDataReady(true);
+    }, (error) => {
+      console.warn("Firestore config snapshot error (likely quota exceeded), using localStorage:", error);
+      const saved = localStorage.getItem('site_config');
+      if (saved) {
+        try {
+          setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
+        } catch (e) {
+          setConfig(DEFAULT_CONFIG);
+        }
       }
       setIsDataReady(true);
     });
@@ -70,11 +113,22 @@ export default function App() {
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
       if (items.length > 0) {
         setPosts(items);
+        localStorage.setItem('site_posts', JSON.stringify(items));
       } else if (INITIAL_POSTS.length > 0 && isUserAdmin) {
         // Seed initial posts if empty and user is admin
         INITIAL_POSTS.forEach(p => {
-          setDoc(doc(db, 'content', 'posts', 'items', p.id), p);
+          setDoc(doc(db, 'content', 'posts', 'items', p.id), p).catch(e => console.warn("Seed post error:", e));
         });
+      }
+    }, (error) => {
+      console.warn("Firestore posts snapshot error, using localStorage:", error);
+      const saved = localStorage.getItem('site_posts');
+      if (saved) {
+        try {
+          setPosts(JSON.parse(saved));
+        } catch (e) {
+          setPosts(INITIAL_POSTS);
+        }
       }
     });
 
@@ -83,11 +137,22 @@ export default function App() {
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Course));
       if (items.length > 0) {
         setCourses(items);
+        localStorage.setItem('site_courses', JSON.stringify(items));
       } else if (INITIAL_COURSES.length > 0 && isUserAdmin) {
         // Seed initial courses if empty and user is admin
         INITIAL_COURSES.forEach((c, index) => {
-          setDoc(doc(db, 'content', 'courses', 'items', c.id), { ...c, order: index });
+          setDoc(doc(db, 'content', 'courses', 'items', c.id), { ...c, order: index }).catch(e => console.warn("Seed course error:", e));
         });
+      }
+    }, (error) => {
+      console.warn("Firestore courses snapshot error, using localStorage:", error);
+      const saved = localStorage.getItem('site_courses');
+      if (saved) {
+        try {
+          setCourses(JSON.parse(saved));
+        } catch (e) {
+          setCourses(INITIAL_COURSES);
+        }
       }
     });
 
@@ -96,11 +161,22 @@ export default function App() {
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Instructor));
       if (items.length > 0) {
         setInstructors(items);
+        localStorage.setItem('site_instructors', JSON.stringify(items));
       } else if (DEFAULT_CONFIG.instructors?.items && DEFAULT_CONFIG.instructors.items.length > 0 && isUserAdmin) {
         // Seed initial instructors if empty and user is admin
         DEFAULT_CONFIG.instructors.items.forEach(item => {
-          setDoc(doc(db, 'content', 'instructors', 'items', item.id), item);
+          setDoc(doc(db, 'content', 'instructors', 'items', item.id), item).catch(e => console.warn("Seed instructor error:", e));
         });
+      }
+    }, (error) => {
+      console.warn("Firestore instructors snapshot error, using localStorage:", error);
+      const saved = localStorage.getItem('site_instructors');
+      if (saved) {
+        try {
+          setInstructors(JSON.parse(saved));
+        } catch (e) {
+          setInstructors(DEFAULT_CONFIG.instructors?.items || []);
+        }
       }
     });
 
@@ -109,11 +185,22 @@ export default function App() {
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
       if (items.length > 0) {
         setGalleryImages(items);
+        localStorage.setItem('site_gallery', JSON.stringify(items));
       } else if (DEFAULT_CONFIG.gallery?.images && DEFAULT_CONFIG.gallery.images.length > 0 && isUserAdmin) {
         // Seed initial gallery if empty and user is admin
         DEFAULT_CONFIG.gallery.images.forEach(img => {
-          setDoc(doc(db, 'content', 'gallery', 'items', img.id), img);
+          setDoc(doc(db, 'content', 'gallery', 'items', img.id), img).catch(e => console.warn("Seed gallery error:", e));
         });
+      }
+    }, (error) => {
+      console.warn("Firestore gallery snapshot error, using localStorage:", error);
+      const saved = localStorage.getItem('site_gallery');
+      if (saved) {
+        try {
+          setGalleryImages(JSON.parse(saved));
+        } catch (e) {
+          setGalleryImages(DEFAULT_CONFIG.gallery?.images || []);
+        }
       }
     });
 
@@ -156,10 +243,20 @@ export default function App() {
   };
 
   const handleUpdateConfig = async (newConfig: SiteConfig) => {
-    try {
-      // Split config into parts to avoid 1MB limit
-      const { instructors: newInstructors, gallery: newGallery, ...generalConfig } = newConfig;
+    // Optimistically update React state and localStorage
+    const { instructors: newInstructors, gallery: newGallery, ...generalConfig } = newConfig;
+    setConfig(newConfig);
+    localStorage.setItem('site_config', JSON.stringify(generalConfig));
+    if (newInstructors?.items) {
+      setInstructors(newInstructors.items);
+      localStorage.setItem('site_instructors', JSON.stringify(newInstructors.items));
+    }
+    if (newGallery?.images) {
+      setGalleryImages(newGallery.images);
+      localStorage.setItem('site_gallery', JSON.stringify(newGallery.images));
+    }
 
+    try {
       // 1. Save general config (without heavy items)
       // CRITICAL: We must NOT save the items/images arrays back to the main config document
       // as they are now managed in separate collections.
@@ -202,29 +299,59 @@ export default function App() {
         }
       }
 
-      toast.success("설정이 저장되었습니다.");
+      toast.success("설정이 데이터베이스에 안전하게 저장되었습니다.");
     } catch (error) {
       console.error("Update Config Error:", error);
-      toast.error(`설정 저장 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      const isQuotaError = error instanceof Error && (
+        error.message.toLowerCase().includes('quota') || 
+        error.message.toLowerCase().includes('resource-exhausted') ||
+        error.message.toLowerCase().includes('limit exceeded')
+      );
+      
+      if (isQuotaError) {
+        toast.warning("⚠️ 일일 무료 데이터베이스 저장 용량이 초과되었습니다. 현재 변경한 사항은 브라우저(로컬 저장소)에 안전하게 임시 저장되었습니다!", {
+          duration: 6000
+        });
+      } else {
+        toast.error(`설정 저장 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      }
     }
   };
 
   const handleUpdatePosts = async (newPosts: Post[]) => {
+    // Optimistically update React state and localStorage
+    setPosts(newPosts);
+    localStorage.setItem('site_posts', JSON.stringify(newPosts));
+
     try {
       // Sync all posts to Firestore
       for (const post of newPosts) {
         await setDoc(doc(db, 'content', 'posts', 'items', post.id), post);
       }
-      setPosts(newPosts);
-      toast.success("게시글이 저장되었습니다.");
+      toast.success("게시글이 데이터베이스에 저장되었습니다.");
     } catch (error) {
       console.error("Update Posts Error:", error);
-      toast.error(`게시글 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
-      throw error;
+      const isQuotaError = error instanceof Error && (
+        error.message.toLowerCase().includes('quota') || 
+        error.message.toLowerCase().includes('resource-exhausted') ||
+        error.message.toLowerCase().includes('limit exceeded')
+      );
+      
+      if (isQuotaError) {
+        toast.warning("⚠️ 일일 무료 데이터베이스 저장 용량이 초과되었습니다. 현재 게시글 변경 사항은 브라우저(로컬 저장소)에 안전하게 임시 저장되었습니다!", {
+          duration: 6000
+        });
+      } else {
+        toast.error(`게시글 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      }
     }
   };
 
   const handleUpdateCourses = async (newCourses: Course[]) => {
+    // Optimistically update React state and localStorage
+    setCourses(newCourses);
+    localStorage.setItem('site_courses', JSON.stringify(newCourses));
+
     try {
       // Find deleted courses
       const deletedCourses = courses.filter(old => !newCourses.some(n => n.id === old.id));
@@ -237,12 +364,22 @@ export default function App() {
         const course = { ...newCourses[i], order: i };
         await setDoc(doc(db, 'content', 'courses', 'items', course.id), course);
       }
-      setCourses(newCourses);
-      toast.success("교육 과정이 저장되었습니다.");
+      toast.success("교육 과정이 데이터베이스에 저장되었습니다.");
     } catch (error) {
       console.error("Update Courses Error:", error);
-      toast.error(`과정 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
-      throw error;
+      const isQuotaError = error instanceof Error && (
+        error.message.toLowerCase().includes('quota') || 
+        error.message.toLowerCase().includes('resource-exhausted') ||
+        error.message.toLowerCase().includes('limit exceeded')
+      );
+      
+      if (isQuotaError) {
+        toast.warning("⚠️ 일일 무료 데이터베이스 저장 용량이 초과되었습니다. 현재 교육 과정 변경 사항은 브라우저(로컬 저장소)에 안전하게 임시 저장되었습니다!", {
+          duration: 6000
+        });
+      } else {
+        toast.error(`과정 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      }
     }
   };
 
@@ -454,7 +591,7 @@ export default function App() {
               </div>
               
               <div className="bg-white rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden p-2 sm:p-6">
-                <Timetable month={fullConfig.scheduleMonth} schedule={fullConfig.schedule} />
+                <Timetable month={fullConfig.scheduleMonth} schedule={fullConfig.schedule} timeSlots={fullConfig.timeSlots} />
               </div>
             </div>
           </section>
@@ -562,6 +699,88 @@ export default function App() {
                       <Button className="w-full" variant="outline">상세 정보</Button>
                     </CardFooter>
                   </Card>
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      case 'reviews':
+        return (
+          <section id="reviews" key="reviews" className="py-20 bg-gray-50/50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-16">
+                <Badge className="mb-4 px-3 py-1 text-sm font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+                  Reviews
+                </Badge>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">수강생 리얼 후기</h2>
+                <p className="text-gray-600">실제 니혼톡에서 공부하신 수강생분들의 생생한 한마디를 만나보세요.</p>
+              </div>
+              
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                  {
+                    name: "이*진",
+                    course: "입문 회화 클래스 수강생",
+                    content: "친절하고 세밀하게 가르쳐주셔서 선생님 덕분에 정말 많은 도움 받았습니다. 왕초보라 시작할 때 두려움이 많았는데 일상 표현부터 하나하나 꼼꼼하게 짚어주셔서 재미있게 배웠어요. 감사하다는 말씀 꼭 드리고 싶어요!",
+                    rating: 5,
+                    date: "2024-05"
+                  },
+                  {
+                    name: "김*성",
+                    course: "JLPT 3급 클래스 수강생",
+                    content: "동탄에 마땅히 일본어 배우러 갈 곳이 없어서 많이 고민하고 서칭해봤었는데, 가까운 곳에 니혼톡이 있어서 너무 좋습니다! 교습소도 아늑하고 쾌적해서 집중도 잘 되고, 퇴근 후에 가기에도 너무 가깝고 딱이에요.",
+                    rating: 5,
+                    date: "2024-05"
+                  },
+                  {
+                    name: "최*우",
+                    course: "1:1 비즈니스 클래스 수강생",
+                    content: "매번 차를 타고 이동해야 해서 주차가 항상 스트레스였는데, 여기는 주차를 2시간 동안 넉넉하게 무료로 지원해줘서 주차 스트레스 없이 마음 편하게 공부할 수 있었습니다. 주차 공간도 여유로워서 퇴근 길 수업도 문제 없어요!",
+                    rating: 5,
+                    date: "2024-04"
+                  },
+                  {
+                    name: "박*희",
+                    course: "초.중급 회화 수강생",
+                    content: "센세와 대화하는 시간이 매주 기다려집니다. 잘못된 발음이나 억양도 엄청 세밀하고 정확하게 피드백 해주시는 친절함에 감동 받았어요! 동탄 최고의 일본어 맛집 인정입니다.",
+                    rating: 5,
+                    date: "2024-04"
+                  }
+                ].map((review, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 15 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-fade-in"
+                  >
+                    <div className="space-y-4">
+                      {/* Rating stars */}
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: review.rating }).map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                      
+                      {/* Comment */}
+                      <p className="text-gray-700 text-sm leading-relaxed font-medium">
+                        "{review.content}"
+                      </p>
+                    </div>
+                    
+                    {/* User Info */}
+                    <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-gray-900 text-sm">{review.name}</span>
+                          <span className="text-[10px] text-gray-400 font-medium">Verified Student</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">{review.course}</p>
+                      </div>
+                      <span className="text-[10px] text-gray-300 font-mono">{review.date}</span>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -718,23 +937,20 @@ export default function App() {
                 
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center space-x-8">
-                  {(config.sectionOrder || ["courses", "about", "instructors", "gallery", "timetable", "posts", "contact"]).map(sectionId => {
+                  {["courses", "timetable", "posts", "instructors", "contact"].map(sectionId => {
                     const labels: Record<string, string> = {
-                      about: '교습소 소개',
                       courses: '교육 과정',
                       timetable: '시간표',
                       posts: '치바 쇼츠',
+                      instructors: '강사 소개',
                       contact: '문의하기',
-                      gallery: '갤러리',
-                      instructors: '강사 소개'
                     };
                     return (
-                      <a key={sectionId} href={`#${sectionId}`} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                      <a key={sectionId} href={`#${sectionId}`} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors font-semibold">
                         {labels[sectionId]}
                       </a>
                     );
                   })}
-                  {/* Desktop Menu - Consultation button removed */}
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -756,28 +972,25 @@ export default function App() {
                   className="md:hidden bg-white border-b border-gray-100 overflow-hidden"
                 >
                   <div className="px-4 pt-2 pb-6 space-y-1">
-                    {(fullConfig.sectionOrder || ["courses", "about", "instructors", "gallery", "timetable", "posts", "contact"]).map(sectionId => {
+                    {["courses", "timetable", "posts", "instructors", "contact"].map(sectionId => {
                       const labels: Record<string, string> = {
-                        about: '교습소 소개',
                         courses: '교육 과정',
                         timetable: '시간표',
                         posts: '치바 쇼츠',
+                        instructors: '강사 소개',
                         contact: '문의하기',
-                        gallery: '갤러리',
-                        instructors: '강사 소개'
                       };
                       return (
                         <a 
                           key={sectionId} 
                           href={`#${sectionId}`} 
                           onClick={() => setIsMenuOpen(false)} 
-                          className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md"
+                          className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md font-semibold"
                         >
                           {labels[sectionId]}
                         </a>
                       );
                     })}
-                    {/* Mobile Menu - Consultation button removed */}
                   </div>
                 </motion.div>
               )}
@@ -837,7 +1050,11 @@ export default function App() {
           </section>
 
           {/* Render Dynamic Sections */}
-          {(fullConfig.sectionOrder || ["courses", "about", "instructors", "gallery", "timetable", "posts", "contact"]).map(sectionId => renderSection(sectionId))}
+          {(fullConfig.sectionOrder || ["courses", "about", "instructors", "gallery", "timetable", "posts", "contact"]).reduce<string[]>((acc, cur) => {
+            acc.push(cur);
+            if (cur === 'courses') acc.push('reviews');
+            return acc;
+          }, []).map(sectionId => renderSection(sectionId))}
 
           {/* Footer */}
           <footer className="bg-white border-t border-gray-100 py-12">
