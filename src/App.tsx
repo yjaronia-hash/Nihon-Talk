@@ -570,91 +570,68 @@ export default function App() {
       case 'contact':
         return (
           <section id="contact" key="contact" className="py-20">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="bg-gray-900 rounded-3xl overflow-hidden shadow-2xl">
-                <div className="lg:grid lg:grid-cols-2">
-                  <div className="p-10 lg:p-16 text-white">
-                    <h2 className="text-3xl font-bold mb-8">지금 바로 상담받으세요</h2>
-                    <div className="space-y-6">
-                      <a href={`tel:${config.contactPhone}`} className="flex items-start gap-4 group hover:opacity-80 transition-opacity">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-colors">
-                          <Phone className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400 mb-1">전화 문의</p>
-                          <p className="text-lg font-medium">{config.contactPhone}</p>
-                        </div>
-                      </a>
-                      <a href={`mailto:${config.contactEmail}`} className="flex items-start gap-4 group hover:opacity-80 transition-opacity">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-colors">
-                          <Mail className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400 mb-1">이메일 문의</p>
-                          <p className="text-lg font-medium">{config.contactEmail}</p>
-                        </div>
-                      </a>
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                          <MapPin className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-400 mb-1">오시는 길</p>
-                          <div className="flex flex-wrap items-center gap-2 mb-4">
-                            <p className="text-lg font-medium">{config.address}</p>
-                            <Badge className="bg-white/10 text-white hover:bg-white/20 border-white/20 text-[10px] py-0 px-2">주차가능</Badge>
-                            <Badge className="bg-white/10 text-white hover:bg-white/20 border-white/20 text-[10px] py-0 px-2">주차비 2시간 무료</Badge>
-                          </div>
-                          
-                          {/* Simple Map Embed */}
-                          <div className="rounded-2xl overflow-hidden h-48 w-full border border-white/10 shadow-inner group relative">
-                            <iframe 
-                              width="100%" 
-                              height="100%" 
-                              style={{ border: 0, filter: 'grayscale(0.1) invert(0.9) contrast(1.1) hue-rotate(180deg)' }} 
-                              src={`https://maps.google.com/maps?q=${encodeURIComponent("경기도 화성시 동탄영천로 150 현대실리콘앨리")}&t=&z=16&ie=UTF8&iwloc=&output=embed`} 
-                              allowFullScreen
-                              loading="lazy"
-                              title="Location Map"
-                            ></iframe>
-                            <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(config.address)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-black text-[10px] px-2 py-1 rounded-md font-bold shadow-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
-                            >
-                              <MapPin className="w-3 h-3" /> 지도 크게 보기
-                            </a>
-                          </div>
-                        </div>
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="bg-gray-900 rounded-3xl overflow-hidden shadow-2xl p-10 lg:p-16 text-white">
+                <h2 className="text-3xl font-bold mb-10 text-center">지금 바로 상담받으세요</h2>
+                <div className="grid md:grid-cols-2 gap-10 items-start max-w-3xl mx-auto">
+                  <div className="space-y-6">
+                    <a href={`tel:${config.contactPhone}`} className="flex items-start gap-4 group hover:opacity-80 transition-opacity">
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-colors">
+                        <Phone className="w-5 h-5" />
                       </div>
-                    </div>
-                    <div className="mt-12 flex gap-4">
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">전화 문의</p>
+                        <p className="text-lg font-medium">{config.contactPhone}</p>
+                      </div>
+                    </a>
+                    <a href={`mailto:${config.contactEmail}`} className="flex items-start gap-4 group hover:opacity-80 transition-opacity">
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition-colors">
+                        <Mail className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">이메일 문의</p>
+                        <p className="text-lg font-medium">{config.contactEmail}</p>
+                      </div>
+                    </a>
+                    <div className="mt-8 flex gap-4">
                       <a href="https://www.youtube.com/@%EB%8B%88%ED%98%BC%ED%86%A1" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
                         <Youtube className="w-5 h-5" />
                       </a>
                     </div>
                   </div>
-                  <div className="bg-white p-10 lg:p-16">
-                    <form className="space-y-4" onSubmit={handleContactSubmit}>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-700">이름</label>
-                          <input name="name" type="text" required className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition-all" placeholder="홍길동" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-700">연락처</label>
-                          <input name="phone" type="tel" required className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition-all" placeholder="010-0000-0000" />
-                        </div>
+                  <div className="flex items-start gap-4 w-full">
+                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 w-full">
+                      <p className="text-sm text-gray-400 mb-1">오시는 길</p>
+                      <div className="flex flex-wrap items-center gap-2 mb-4">
+                        <p className="text-lg font-medium">{config.address}</p>
+                        <Badge className="bg-white/10 text-white hover:bg-white/20 border-white/20 text-[10px] py-0 px-2">주차가능</Badge>
+                        <Badge className="bg-white/10 text-white hover:bg-white/20 border-white/20 text-[10px] py-0 px-2">주차비 2시간 무료</Badge>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">문의 내용</label>
-                        <textarea name="message" rows={4} required className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none transition-all resize-none" placeholder="상담받고 싶은 내용을 적어주세요."></textarea>
+                      
+                      {/* Simple Map Embed */}
+                      <div className="rounded-2xl overflow-hidden h-48 w-full border border-white/10 shadow-inner group relative">
+                        <iframe 
+                          width="100%" 
+                          height="100%" 
+                          style={{ border: 0, filter: 'grayscale(0.1) invert(0.9) contrast(1.1) hue-rotate(180deg)' }} 
+                          src={`https://maps.google.com/maps?q=${encodeURIComponent("경기도 화성시 동탄영천로 150 현대실리콘앨리")}&t=&z=16&ie=UTF8&iwloc=&output=embed`} 
+                          allowFullScreen
+                          loading="lazy"
+                          title="Location Map"
+                        ></iframe>
+                        <a 
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(config.address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-black text-[10px] px-2 py-1 rounded-md font-bold shadow-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                        >
+                          <MapPin className="w-3 h-3" /> 지도 크게 보기
+                        </a>
                       </div>
-                      <Button type="submit" className="w-full py-6 text-lg font-bold" style={{ backgroundColor: config.primaryColor, color: '#000' }}>
-                        상담 신청하기
-                      </Button>
-                    </form>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -9,14 +9,106 @@ interface TimetableProps {
   schedule: ScheduleItem[];
 }
 
-const DAYS = ['월', '화', '수', '목', '금', '토'];
+const DAYS = ['월', '화', '수', '목', '금'];
+
+const DEFAULT_TIME_SLOTS = [
+  "10:00-10:30",
+  "10:30-11:00",
+  "11:00-11:30",
+  "11:30-12:00",
+  "12:00-12:30",
+  "12:30-13:00",
+  "13:00-13:30",
+  "13:30-14:00",
+  "14:00-14:30",
+  "14:30-15:00",
+  "15:00-15:30",
+  "15:30-16:00",
+  "16:00-16:30",
+  "16:30-17:00",
+  "17:00-17:30",
+  "17:30-18:00",
+  "18:00-18:30",
+  "18:30-19:00",
+  "19:00-19:30",
+  "19:30-20:00",
+  "20:00-20:30",
+  "20:30-21:00"
+];
+
+const parseTimeToMinutes = (timeStr: string): number => {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const parseSlot = (slotStr: string): [number, number] | null => {
+  if (!slotStr || !slotStr.includes('-')) return null;
+  const parts = slotStr.split('-');
+  if (parts.length !== 2) return null;
+  const start = parseTimeToMinutes(parts[0].trim());
+  const end = parseTimeToMinutes(parts[1].trim());
+  if (isNaN(start) || isNaN(end)) return null;
+  return [start, end];
+};
+
+const isItemInSlot = (item: { timeSlot: string }, slot: string): boolean => {
+  if (item.timeSlot === slot) return true;
+  const itemTimes = parseSlot(item.timeSlot);
+  const slotTimes = parseSlot(slot);
+  if (!itemTimes || !slotTimes) return false;
+  const [itemStart, itemEnd] = itemTimes;
+  const [slotStart, slotEnd] = slotTimes;
+  return itemStart < slotEnd && itemEnd > slotStart;
+};
+
+const isItemStartingAtSlot = (item: { timeSlot: string }, sIdx: number): boolean => {
+  const intersectsCurrent = isItemInSlot(item, DEFAULT_TIME_SLOTS[sIdx]);
+  if (!intersectsCurrent) return false;
+  if (sIdx === 0) return true;
+  const intersectsPrevious = isItemInSlot(item, DEFAULT_TIME_SLOTS[sIdx - 1]);
+  return !intersectsPrevious;
+};
+
+const getRowSpan = (item: { timeSlot: string }, startIdx: number): number => {
+  let span = 1;
+  for (let i = startIdx + 1; i < DEFAULT_TIME_SLOTS.length; i++) {
+    if (isItemInSlot(item, DEFAULT_TIME_SLOTS[i])) {
+      span++;
+    } else {
+      break;
+    }
+  }
+  return span;
+};
+
+const isCellCovered = (day: string, sIdx: number, schedule: any[]): boolean => {
+  for (let prevIdx = 0; prevIdx < sIdx; prevIdx++) {
+    const prevItems = schedule.filter(item => item.day === day && isItemStartingAtSlot(item, prevIdx));
+    if (prevItems.length > 0) {
+      const span = Math.max(...prevItems.map(item => getRowSpan(item, prevIdx)));
+      if (prevIdx + span > sIdx) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
 
 export default function Timetable({ month, schedule = [] }: TimetableProps) {
   const [activeDay, setActiveDay] = useState('월');
   
-  // Get unique time slots and sort them
   const safeSchedule = Array.isArray(schedule) ? schedule : [];
-  const timeSlots = Array.from(new Set(safeSchedule.map(item => item.timeSlot))).sort();
+  const timeSlots = DEFAULT_TIME_SLOTS;
+
+  // For Mobile: filter and sort items of the active day to avoid duplicating across multiple slots
+  const dayItems = safeSchedule
+    .filter(item => item.day === activeDay)
+    .sort((a, b) => {
+      const aTimes = parseSlot(a.timeSlot);
+      const bTimes = parseSlot(b.timeSlot);
+      if (!aTimes || !bTimes) return 0;
+      return aTimes[0] - bTimes[0];
+    });
 
   if (safeSchedule.length === 0) {
     return (
@@ -57,37 +149,29 @@ export default function Timetable({ month, schedule = [] }: TimetableProps) {
               transition={{ duration: 0.2 }}
               className="space-y-3"
             >
-              {timeSlots.map(slot => {
-                const items = safeSchedule.filter(item => item.day === activeDay && item.timeSlot === slot);
-                if (items.length === 0) return null;
-
-                return (
-                  <div key={slot} className="flex gap-4 items-start bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-                    <div className="w-24 shrink-0 pt-1">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Time</span>
-                      <p className="text-sm font-bold text-gray-700">{slot}</p>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      {items.map(item => (
-                        <div
-                          key={item.id}
-                          className="p-3 rounded-xl text-sm font-bold shadow-sm border border-black/5 flex flex-col gap-1"
-                          style={{ 
-                            backgroundColor: item.color || '#FFFFFF',
-                            color: '#1F2937'
-                          }}
-                        >
-                          <span>{item.className}</span>
-                          {item.isGroup && (
-                            <span className="text-[10px] opacity-60 font-normal">그룹수업</span>
-                          )}
-                        </div>
-                      ))}
+              {dayItems.map(item => (
+                <div key={item.id} className="flex gap-4 items-start bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                  <div className="w-24 shrink-0 pt-1">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Time</span>
+                    <p className="text-sm font-bold text-gray-700">{item.timeSlot}</p>
+                  </div>
+                  <div className="flex-1">
+                    <div
+                      className="p-3 rounded-xl text-sm font-bold shadow-sm border border-black/5 flex flex-col gap-1"
+                      style={{ 
+                        backgroundColor: item.color || '#FFFFFF',
+                        color: '#1F2937'
+                      }}
+                    >
+                      <span>{item.className}</span>
+                      {item.isGroup && (
+                        <span className="text-[10px] opacity-60 font-normal">그룹수업</span>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-              {safeSchedule.filter(item => item.day === activeDay).length === 0 && (
+                </div>
+              ))}
+              {dayItems.length === 0 && (
                 <div className="py-12 text-center text-gray-400 text-sm italic">
                   해당 요일에는 예정된 수업이 없습니다.
                 </div>
@@ -99,49 +183,76 @@ export default function Timetable({ month, schedule = [] }: TimetableProps) {
 
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto pb-4">
-        <div className="min-w-[800px]">
-          <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50/50">
-            <div className="p-4 text-center font-bold text-gray-400 text-sm">시간</div>
-            {DAYS.map(day => (
-              <div key={day} className="p-4 text-center font-bold text-gray-900">{day}</div>
-            ))}
-          </div>
-          
-          <div className="divide-y divide-gray-100">
-            {timeSlots.map(slot => (
-              <div key={slot} className="grid grid-cols-7 group hover:bg-gray-50/30 transition-colors">
-                <div className="p-4 flex items-center justify-center text-xs font-medium text-gray-500 bg-gray-50/30">
-                  {slot}
-                </div>
-                {DAYS.map(day => {
-                  const items = safeSchedule.filter(item => item.day === day && item.timeSlot === slot);
-                  return (
-                    <div key={`${day}-${slot}`} className="p-2 border-l border-gray-50 flex flex-col gap-2 min-h-[80px] justify-center">
-                      {items.map(item => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="p-2 rounded-lg text-xs font-semibold shadow-sm border border-black/5 flex flex-col gap-1"
-                          style={{ 
-                            backgroundColor: item.color || '#F3F4F6',
-                            color: '#1F2937'
-                          }}
+        <div className="min-w-[800px] border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+          <table className="w-full border-collapse text-left table-fixed">
+            <thead>
+              <tr className="bg-gray-50/70 border-b border-gray-200">
+                <th className="p-4 text-center font-bold text-gray-400 text-sm w-28">시간</th>
+                {DAYS.map(day => (
+                  <th key={day} className="p-4 text-center font-bold text-gray-900 border-l border-gray-100 w-1/5">{day}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {timeSlots.map((slot, sIdx) => (
+                <tr key={slot} className="hover:bg-gray-50/20 transition-colors h-20">
+                  <td className="p-4 text-center text-xs font-semibold text-gray-500 bg-gray-50/30 w-28 align-middle h-20">
+                    {slot}
+                  </td>
+                  {DAYS.map(day => {
+                    // Check if this cell is covered by a spanning class starting earlier
+                    if (isCellCovered(day, sIdx, safeSchedule)) {
+                      return null; // Skip rendering this cell since it's spanned by a rowSpan
+                    }
+
+                    const startingItems = safeSchedule.filter(item => item.day === day && isItemStartingAtSlot(item, sIdx));
+                    if (startingItems.length > 0) {
+                      const span = Math.max(...startingItems.map(item => getRowSpan(item, sIdx)));
+                      return (
+                        <td 
+                          key={`${day}-${slot}`} 
+                          rowSpan={span} 
+                          className="p-1 border-l border-gray-100 h-1"
                         >
-                          <span>{item.className}</span>
-                          {item.isGroup && (
-                            <span className="text-[10px] opacity-60 font-normal">그룹수업</span>
-                          )}
-                        </motion.div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+                          <div className="flex flex-col h-full justify-stretch">
+                            {startingItems.map(item => (
+                              <motion.div
+                                key={item.id}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="p-3 rounded-xl text-xs font-bold shadow-sm border border-black/5 flex flex-col gap-1 h-full flex-1 justify-center"
+                                style={{ 
+                                  backgroundColor: item.color || '#F3F4F6',
+                                  color: '#1F2937'
+                                }}
+                              >
+                                <span className="text-sm tracking-tight leading-snug">{item.className}</span>
+                                <span className="text-[10px] text-gray-500 font-mono mt-1">{item.timeSlot}</span>
+                                {item.isGroup && (
+                                  <span className="inline-block self-start mt-1 px-1.5 py-0.5 text-[9px] bg-black/5 text-gray-600 rounded font-normal">그룹수업</span>
+                                )}
+                              </motion.div>
+                            ))}
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    // Empty cell
+                    return (
+                      <td 
+                        key={`${day}-${slot}`} 
+                        className="p-2 border-l border-gray-100 h-20"
+                      />
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
+
       
       <div className="mt-8 p-6 bg-yellow-50/50 rounded-2xl border border-yellow-100/50">
         <ul className="space-y-2 text-sm text-gray-600">

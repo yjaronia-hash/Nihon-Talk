@@ -18,6 +18,91 @@ import { toast } from "sonner";
 import { db } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 
+const DAYS = ['월', '화', '수', '목', '금'];
+
+const DEFAULT_TIME_SLOTS = [
+  "10:00-10:30",
+  "10:30-11:00",
+  "11:00-11:30",
+  "11:30-12:00",
+  "12:00-12:30",
+  "12:30-13:00",
+  "13:00-13:30",
+  "13:30-14:00",
+  "14:00-14:30",
+  "14:30-15:00",
+  "15:00-15:30",
+  "15:30-16:00",
+  "16:00-16:30",
+  "16:30-17:00",
+  "17:00-17:30",
+  "17:30-18:00",
+  "18:00-18:30",
+  "18:30-19:00",
+  "19:00-19:30",
+  "19:30-20:00",
+  "20:00-20:30",
+  "20:30-21:00"
+];
+
+const parseTimeToMinutes = (timeStr: string): number => {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const parseSlot = (slotStr: string): [number, number] | null => {
+  if (!slotStr || !slotStr.includes('-')) return null;
+  const parts = slotStr.split('-');
+  if (parts.length !== 2) return null;
+  const start = parseTimeToMinutes(parts[0].trim());
+  const end = parseTimeToMinutes(parts[1].trim());
+  if (isNaN(start) || isNaN(end)) return null;
+  return [start, end];
+};
+
+const isItemInSlot = (item: { timeSlot: string }, slot: string): boolean => {
+  if (item.timeSlot === slot) return true;
+  const itemTimes = parseSlot(item.timeSlot);
+  const slotTimes = parseSlot(slot);
+  if (!itemTimes || !slotTimes) return false;
+  const [itemStart, itemEnd] = itemTimes;
+  const [slotStart, slotEnd] = slotTimes;
+  return itemStart < slotEnd && itemEnd > slotStart;
+};
+
+const isItemStartingAtSlot = (item: { timeSlot: string }, sIdx: number): boolean => {
+  const intersectsCurrent = isItemInSlot(item, DEFAULT_TIME_SLOTS[sIdx]);
+  if (!intersectsCurrent) return false;
+  if (sIdx === 0) return true;
+  const intersectsPrevious = isItemInSlot(item, DEFAULT_TIME_SLOTS[sIdx - 1]);
+  return !intersectsPrevious;
+};
+
+const getRowSpan = (item: { timeSlot: string }, startIdx: number): number => {
+  let span = 1;
+  for (let i = startIdx + 1; i < DEFAULT_TIME_SLOTS.length; i++) {
+    if (isItemInSlot(item, DEFAULT_TIME_SLOTS[i])) {
+      span++;
+    } else {
+      break;
+    }
+  }
+  return span;
+};
+
+const isCellCovered = (day: string, sIdx: number, schedule: any[]): boolean => {
+  for (let prevIdx = 0; prevIdx < sIdx; prevIdx++) {
+    const prevItems = schedule.filter(item => item.day === day && isItemStartingAtSlot(item, prevIdx));
+    if (prevItems.length > 0) {
+      const span = Math.max(...prevItems.map(item => getRowSpan(item, prevIdx)));
+      if (prevIdx + span > sIdx) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
 interface AdminDashboardProps {
   config: SiteConfig;
   setConfig: (config: SiteConfig) => void;
@@ -46,18 +131,6 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
   React.useEffect(() => {
     setLocalCourses(courses);
   }, [courses]);
-
-  const DAYS = ['월', '화', '수', '목', '금', '토'];
-  const DEFAULT_TIME_SLOTS = [
-    "10:00-12:00",
-    "11:30-13:00",
-    "13:00-14:30",
-    "14:30-16:00",
-    "16:00-17:30",
-    "17:30-19:00",
-    "19:00-20:30",
-    "20:00-21:30"
-  ];
 
   const handleSaveConfig = async () => {
     try {
@@ -1091,62 +1164,87 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
                     
                     <Separator />
                     
-                    <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
-                      <div className="grid grid-cols-7 border-b bg-gray-50">
-                        <div className="p-3 text-center text-[10px] font-bold text-gray-400 border-r uppercase tracking-wider">Time</div>
-                        {DAYS.map(day => (
-                          <div key={day} className="p-3 text-center text-sm font-bold text-gray-700 border-r last:border-r-0">{day}</div>
-                        ))}
-                      </div>
-                      
-                      <div className="divide-y">
-                        {Array.from(new Set([...DEFAULT_TIME_SLOTS, ...(localConfig.schedule || []).map(s => s.timeSlot)])).sort().map(slot => (
-                          <div key={slot} className="grid grid-cols-7 group">
-                            <div className="p-2 flex items-center justify-center text-[10px] font-medium text-gray-400 bg-gray-50/30 border-r">
-                              {slot}
-                            </div>
-                            {DAYS.map(day => {
-                              const items = (localConfig.schedule || []).filter(i => i.day === day && i.timeSlot === slot);
-                              return (
-                                <div 
-                                  key={`${day}-${slot}`} 
-                                  className="p-1 border-r last:border-r-0 min-h-[70px] hover:bg-blue-50/50 cursor-pointer transition-colors relative group/cell"
-                                  onClick={() => {
-                                    const newItem: ScheduleItem = {
-                                      id: Date.now().toString(),
-                                      day,
-                                      timeSlot: slot,
-                                      className: "새 수업",
-                                      isGroup: false
-                                    };
-                                    setLocalConfig({...localConfig, schedule: [...(localConfig.schedule || []), newItem]});
-                                    setEditingItem(newItem);
-                                  }}
-                                >
-                                  {items.map(item => (
-                                    <motion.div 
-                                      key={item.id}
-                                      layoutId={item.id}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingItem(item);
-                                      }}
-                                      className="mb-1 p-1.5 rounded-md text-[10px] font-bold shadow-sm border border-black/5 truncate cursor-pointer hover:brightness-95 transition-all"
-                                      style={{ backgroundColor: item.color || '#f3f4f6', color: '#1f2937' }}
+                    <div className="border rounded-xl overflow-hidden shadow-sm bg-white overflow-x-auto">
+                      <table className="w-full border-collapse text-left min-w-[700px] table-fixed">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="p-3 text-center text-[10px] font-bold text-gray-400 w-24 uppercase tracking-wider">Time</th>
+                            {DAYS.map(day => (
+                              <th key={day} className="p-3 text-center text-sm font-bold text-gray-700 border-l w-1/5">{day}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {DEFAULT_TIME_SLOTS.map((slot, sIdx) => (
+                            <tr key={slot} className="hover:bg-gray-50/20 transition-colors h-20">
+                              <td className="p-2 text-center text-[10px] font-medium text-gray-400 bg-gray-50/30 w-24 align-middle h-20">
+                                {slot}
+                              </td>
+                              {DAYS.map(day => {
+                                const scheduleList = localConfig.schedule || [];
+                                // Check if this cell is covered by a spanning class starting earlier
+                                if (isCellCovered(day, sIdx, scheduleList)) {
+                                  return null; // Skip rendering this cell since it's spanned by a rowSpan
+                                }
+
+                                const startingItems = scheduleList.filter(item => item.day === day && isItemStartingAtSlot(item, sIdx));
+                                if (startingItems.length > 0) {
+                                  const span = Math.max(...startingItems.map(item => getRowSpan(item, sIdx)));
+                                  return (
+                                    <td 
+                                      key={`${day}-${slot}`} 
+                                      rowSpan={span} 
+                                      className="p-1 border-l h-1"
                                     >
-                                      {item.className}
-                                      {item.isGroup && <div className="text-[8px] opacity-50 font-normal">그룹</div>}
-                                    </motion.div>
-                                  ))}
-                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 pointer-events-none">
-                                    <Plus className="w-4 h-4 text-blue-400" />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
+                                      <div className="flex flex-col h-full justify-stretch">
+                                        {startingItems.map(item => (
+                                          <motion.div 
+                                            key={item.id}
+                                            layoutId={item.id}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingItem(item);
+                                            }}
+                                            className="p-1.5 rounded-md text-[10px] font-bold shadow-sm border border-black/5 truncate cursor-pointer hover:brightness-95 transition-all h-full flex-1 flex flex-col justify-center"
+                                            style={{ backgroundColor: item.color || '#f3f4f6', color: '#1f2937' }}
+                                          >
+                                            <div className="truncate">{item.className}</div>
+                                            <div className="text-[8px] opacity-60 font-mono">{item.timeSlot}</div>
+                                            {item.isGroup && <div className="text-[8px] opacity-50 font-normal">그룹</div>}
+                                          </motion.div>
+                                        ))}
+                                      </div>
+                                    </td>
+                                  );
+                                }
+
+                                // Empty cell
+                                return (
+                                  <td 
+                                    key={`${day}-${slot}`} 
+                                    className="p-1 border-l h-20 hover:bg-blue-50/50 cursor-pointer transition-colors relative group/cell text-center align-middle"
+                                    onClick={() => {
+                                      const newItem: ScheduleItem = {
+                                        id: Date.now().toString(),
+                                        day,
+                                        timeSlot: slot,
+                                        className: "새 수업",
+                                        isGroup: false
+                                      };
+                                      setLocalConfig({...localConfig, schedule: [...(localConfig.schedule || []), newItem]});
+                                      setEditingItem(newItem);
+                                    }}
+                                  >
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 pointer-events-none">
+                                      <Plus className="w-4 h-4 text-blue-400" />
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
 
                     <div className="flex justify-center">
