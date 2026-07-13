@@ -111,9 +111,10 @@ interface AdminDashboardProps {
   courses: Course[];
   setCourses: (courses: Course[]) => void;
   onClose: () => void;
+  onLogout?: () => void;
 }
 
-export default function AdminDashboard({ config, setConfig, posts, setPosts, courses, setCourses, onClose }: AdminDashboardProps) {
+export default function AdminDashboard({ config, setConfig, posts, setPosts, courses, setCourses, onClose, onLogout }: AdminDashboardProps) {
   const [localConfig, setLocalConfig] = useState(config);
   const [localPosts, setLocalPosts] = useState(posts);
   const [localCourses, setLocalCourses] = useState(courses);
@@ -363,6 +364,11 @@ export default function AdminDashboard({ config, setConfig, posts, setPosts, cou
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {onLogout && (
+            <Button variant="outline" size="sm" onClick={onLogout} className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-100">
+              관리자 로그아웃
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleResetToDefaults} className="text-gray-500 hover:text-red-600 border-gray-200">
             <RotateCcw className="w-4 h-4 mr-2" /> 초기화
           </Button>

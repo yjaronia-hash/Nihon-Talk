@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import AdminDashboard from './components/AdminDashboard';
+import AdminLoginModal from './components/AdminLoginModal';
 import Timetable from './components/Timetable';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -69,8 +70,15 @@ export default function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
+  const [isLocalAdmin, setIsLocalAdmin] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('is_local_admin') === 'true';
+    }
+    return false;
+  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   
-  const isUserAdmin = user?.email === 'yjaronia@gmail.com';
+  const isUserAdmin = user?.email === 'yjaronia@gmail.com' || isLocalAdmin;
 
   // Auth state listener
   useEffect(() => {
@@ -228,17 +236,26 @@ export default function App() {
     }
   }), [config, instructors, galleryImages]);
 
-  const toggleAdmin = async () => {
-    if (!user) {
-      try {
-        await signInWithGoogle();
-      } catch (error) {
-        toast.error("로그인에 실패했습니다.");
-      }
-    } else if (isUserAdmin) {
+  const toggleAdmin = () => {
+    if (isUserAdmin) {
       setIsAdminMode(!isAdminMode);
     } else {
-      toast.error("관리자 권한이 없습니다.");
+      setIsLoginModalOpen(true);
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      if (user) {
+        await logout();
+      }
+      setIsLocalAdmin(false);
+      localStorage.removeItem('is_local_admin');
+      setIsAdminMode(false);
+      toast.success("관리자 모드에서 로그아웃되었습니다.");
+    } catch (e) {
+      console.error("Logout Error:", e);
+      toast.error("로그아웃 중 오류가 발생했습니다.");
     }
   };
 
@@ -866,6 +883,18 @@ export default function App() {
     <div className="min-h-screen bg-white" style={{ fontFamily: config.fontFamily }}>
       <Toaster position="top-right" />
       
+      <AdminLoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+        onLoginSuccess={(isLocal) => {
+          if (isLocal) {
+            setIsLocalAdmin(true);
+            localStorage.setItem('is_local_admin', 'true');
+          }
+          setIsAdminMode(true);
+        }} 
+      />
+      
       {!isDataReady ? (
         <div className="fixed inset-0 bg-white flex items-center justify-center z-[100]">
           <motion.div 
@@ -915,6 +944,7 @@ export default function App() {
               courses={courses}
               setCourses={handleUpdateCourses}
               onClose={() => setIsAdminMode(false)}
+              onLogout={handleAdminLogout}
             />
           ) : (
             <div className="flex flex-col">
